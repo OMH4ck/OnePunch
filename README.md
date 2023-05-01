@@ -35,6 +35,7 @@ cmake --build build -j4
 ## TODO
 - [ ] Support specifying the range of input registers
 - [ ] Support specifying the range of output registers
+- [ ] Better print the results
 - [ ] Support analyzing multiple binaries
 
 ## Note
