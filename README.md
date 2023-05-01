@@ -5,8 +5,10 @@
 
 # OnePunch
 
-`OnePunch` is a tool for finding gadgets to achieve arbitrary code execution. Given a list of registers that you control, a list of registers that you want to control and a binary file, `OnePunch` will find a gadget chain that will allow you to control the target registers.
-Currently `OnePunch` only supports `x86_64` architecture.
+`OnePunch` is a tool for finding gadgets to achieve arbitrary code execution (call arbitrary function with controlled arguments).
+
+This tool assumes you can already control the rip and some registers. 
+Given a list of registers that you control, a list of registers that you want to control and a binary file, `OnePunch` will find a gadget chain in the binary that will allow you to control the target registers and the RIP.
 
 For example, if you have control the `r8`, which you can set its value to the address of some buffer you fully control, and you want to control `rdi` because you want to call `system("sh")`, you can use `OnePunch` to make your life easier:
 ```bash
@@ -24,6 +26,10 @@ Result:
   174fd3:       call  QWORD PTR [rax+0x340]
 ------
 ```
+
+The number on the left is the offset of the gadget, the number of the right is the corresponding instructions.
+
+Currently `OnePunch` only supports `x86_64` architecture.
 
 ## Build
 ```bash
@@ -49,11 +55,15 @@ Example: ./OnePunch -i rdi rsi -c rsp:0 rbp:1 -f libc.so.6
 1 means we want to completely control the value of the register, and 0 means we allow the register to be a pointer value as long as it can point to a buffer that we control.
 ```
 
+`OnePunch` will give you a random result from all possible solutions. If that gadget happens to be not working, you can just run `OnePunch` again and it is likely that you will get a different result.
+
 ## TODO
 - [ ] Support specifying the range of input registers
 - [ ] Support specifying the range of output registers
-- [ ] Better print the results
+- [ ] Suppprt printing how to set up the memory
 - [ ] Support analyzing multiple binaries
+
+One of the important features missing is to print out how we can set up the memory. The feature is still buggy so we disable it for now. (If you really want to use it, you can uncomment the `record_memory` in `src/onepunch.cpp`).
 
 ## Note
 The code is messy right now. 

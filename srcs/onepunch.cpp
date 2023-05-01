@@ -1348,6 +1348,11 @@ void OnePunch::Run() {
   cout << "Preprocess time: " << get_cur_time() - t_start << endl;
   t_start = get_cur_time();
 
+  // Save the regs
+  std::vector<REG> controlled_regs;
+  for (auto reg : input_regs_) {
+    controlled_regs.push_back(reg->name_);
+  }
   if (0) {
     for (auto i : code_segments) {
       for (auto k : i->inst_list_) {
@@ -1383,6 +1388,10 @@ void OnePunch::Run() {
     cout << "------" << endl;
   }
   cout << "Minimization time: " << get_cur_time() - t_start << endl;
+
+  // TODO: Fix the bug in record_memory before we can enable this feature.
+  // record_memory(controlled_regs, output_segments, must_control_list_);
+
   for (auto &each : instruction_list) {
     delete each;
   }
