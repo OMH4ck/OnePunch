@@ -64,8 +64,5 @@ int main(int argc, char **argv) {
   OnePunch onepunch(file_path, *reg_list, *must_control_reg_list, search_level);
   onepunch.Run();
 
-  // TODO: Fix the bug in record_memory before we can enable this feature.
-  // record_memory(control_reg_for_prepare, output_segments, must_control_reg_list);
-
   return 0;
 }
