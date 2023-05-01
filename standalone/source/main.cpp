@@ -9,6 +9,7 @@
 
 #include "asmutils.h"
 #include "onepunch.h"
+#include "onepunch/version.h"
 #include "utils.h"
 
 using namespace std;
@@ -25,7 +26,7 @@ namespace {
 }  // namespace
 
 int main(int argc, char **argv) {
-  argparse::ArgumentParser program("OnePunch");
+  argparse::ArgumentParser program("OnePunch", ONEPUNCH_VERSION);
   program.add_argument("-i", "--input")
       .nargs(argparse::nargs_pattern::at_least_one)
       .required()
