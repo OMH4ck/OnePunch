@@ -1,5 +1,7 @@
 #include "onepunch.h"
 
+#include <algorithm>
+
 long MEM_INF = 0x10000000;
 
 // static const char *g_type_strings[] = {"CallValue", "MemValue", "CallRegValue", "OtherValue"};
@@ -1328,4 +1330,112 @@ void match_and_print(vector<shared_ptr<Memory>> mem_list,
       }
     }
   }
+}
+
+void OnePunch::Run() {
+  std::srand(unsigned(std::time(0)));
+  auto t_start = get_cur_time();
+  auto instruction_list = get_disasm_code(input_file_);
+  auto code_segments = get_call_segment(instruction_list);
+  random_shuffle(code_segments.begin(), code_segments.end());
+  list<Register *> output_reg_list;
+  vector<pair<Segment *, unsigned>> output_segments;
+  cout << "Segment size: " << code_segments.size() << endl;
+  cout << "Collect segment time: " << get_cur_time() - t_start << endl;
+  t_start = get_cur_time();
+
+  Preprocessor::process(code_segments);
+  cout << "Preprocess time: " << get_cur_time() - t_start << endl;
+  t_start = get_cur_time();
+
+  if (0) {
+    for (auto i : code_segments) {
+      for (auto k : i->inst_list_) {
+        cout << k->original_inst_ << endl;
+      }
+      cout << "-------" << endl;
+    }
+  }
+  bool res = dfs(code_segments, must_control_list_, input_regs_, output_reg_list, output_segments,
+                 search_level_);
+
+  if (res == false) {
+    cout << "No solution found!" << endl;
+    return;
+  }
+
+  std::cout << "Solution found!" << std::endl;
+  for (auto &i : output_segments) {
+    for (auto idx = i.second; idx < i.first->inst_list_.size(); idx++) {
+      cout << i.first->inst_list_[idx]->original_inst_ << endl;
+    }
+    cout << "------" << endl;
+  }
+  cout << "DFS time: " << get_cur_time() - t_start << endl;
+  t_start = get_cur_time();
+  cout << "after minimize:" << endl;
+  list<Register *> sol_reg;
+  minimize_result(sol_reg, output_segments, input_regs_, must_control_list_);
+  for (auto &i : output_segments) {
+    for (auto idx = i.second; idx < i.first->inst_list_.size(); idx++) {
+      cout << i.first->inst_list_[idx]->original_inst_ << endl;
+    }
+    cout << "------" << endl;
+  }
+  cout << "Minimization time: " << get_cur_time() - t_start << endl;
+  for (auto &each : instruction_list) {
+    delete each;
+  }
+
+  for (auto &each : code_segments) {
+    delete each;
+  }
+}
+
+std::optional<std::list<Register *>> ParseInputRegs(std::vector<std::string> input_regs) {
+  vector<REG> control_reg_for_prepare;
+  map<REG, vector<pair<long, long>>> control_reg_remove_ranges;
+  for (auto i : input_regs) {
+    auto tmp_vec = str_split(i, ":");
+    auto r_name = tmp_vec[0];
+    auto reg = get_reg_by_str(r_name);
+    if (reg == REG_NONE) {
+      return std::nullopt;
+    }
+    for (auto idx = 1; idx < tmp_vec.size(); idx++) {
+      auto range = str_split(tmp_vec[idx], "-");
+      assert(range.size() == 2);
+      control_reg_remove_ranges[reg].push_back(
+          make_pair(atol(range[0].c_str()), atol(range[1].c_str())));
+    }
+    control_reg_for_prepare.push_back(reg);
+  }
+
+  auto reg_list = prepare_reg_list(control_reg_for_prepare);
+  for (auto r : reg_list) {
+    for (auto range : control_reg_remove_ranges[r->name_]) {
+      r->remove_range(range);
+    }
+  }
+  return reg_list;
+}
+
+std::optional<vector<pair<REG, int>>> ParseMustControlRegs(
+    std::vector<std::string> must_control_list) {
+  vector<pair<REG, int>> must_control_reg_list;
+
+  for (auto &i : must_control_list) {
+    auto a = str_split(i, ":");
+    auto reg = get_reg_by_str(a[0]);
+    if (reg == REG_NONE || a.size() != 2) {
+      return std::nullopt;
+    }
+
+    if (a[1][0] == '1') {
+      must_control_reg_list.push_back(make_pair(reg, 1));
+    } else {
+      must_control_reg_list.push_back(make_pair(reg, 0));
+    }
+  }
+  return must_control_reg_list;
 }

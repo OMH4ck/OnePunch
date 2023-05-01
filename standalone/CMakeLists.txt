@@ -2,6 +2,14 @@ cmake_minimum_required(VERSION 3.14...3.22)
 
 project(OnePunchStandalone LANGUAGES CXX)
 
+# Set default build type to Release
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE
+      "Release"
+      CACHE STRING "Build type" FORCE
+  )
+endif()
+
 # --- Import tools ----
 
 include(../cmake/tools.cmake)
@@ -28,5 +36,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 OUTPUT_NAME "On
 
 target_link_libraries(${PROJECT_NAME} OnePunch::OnePunch cxxopts argparse::argparse)
 
-target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
-target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
+# If debug build, enable address sanitizer
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
+  target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
+endif()

@@ -1,8 +1,9 @@
 #ifndef __HEADER_ONEPUNCH__
 #define __HEADER_ONEPUNCH__
 
-#include "asmutils.h"
+#include <optional>
 
+#include "asmutils.h"
 using std::list;
 using std::map;
 using std::pair;
@@ -176,4 +177,24 @@ template <typename... Args> std::string string_format(const char *format, Args..
   return result;
 }
 
+class OnePunch {
+public:
+  OnePunch(std::string input_file, std::list<Register *> input_regs,
+           std::vector<std::pair<REG, int>> must_control_list, int search_level)
+      : input_file_(input_file),
+        input_regs_(input_regs),
+        must_control_list_(must_control_list),
+        search_level_(search_level) {}
+  void Run();
+
+private:
+  std::string input_file_;
+  std::list<Register *> input_regs_;
+  std::vector<std::pair<REG, int>> must_control_list_;
+  int search_level_;
+};
+
+std::optional<std::list<Register *>> ParseInputRegs(std::vector<std::string> input_regs);
+std::optional<vector<pair<REG, int>>> ParseMustControlRegs(
+    std::vector<std::string> must_control_list);
 #endif
