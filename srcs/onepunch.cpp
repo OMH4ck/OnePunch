@@ -1402,7 +1402,7 @@ std::optional<std::list<Register *>> ParseInputRegs(std::vector<std::string> inp
     if (reg == REG_NONE) {
       return std::nullopt;
     }
-    for (auto idx = 1; idx < tmp_vec.size(); idx++) {
+    for (size_t idx = 1; idx < tmp_vec.size(); idx++) {
       auto range = str_split(tmp_vec[idx], "-");
       assert(range.size() == 2);
       control_reg_remove_ranges[reg].push_back(
