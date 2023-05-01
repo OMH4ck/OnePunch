@@ -7,7 +7,7 @@
 
 `OnePunch` is a tool for finding gadgets to achieve arbitrary code execution (call arbitrary function with controlled arguments).
 
-This tool assumes you can already control the rip and some registers. 
+This tool assumes you can already control the rip and some registers (And some fully controlled buffer with known addresses). 
 Given a list of registers that you control, a list of registers that you want to control and a binary file, `OnePunch` will find a gadget chain in the binary that will allow you to control the target registers and the RIP.
 
 For example, if you have control the `r8`, which you can set its value to the address of some buffer you fully control, and you want to control `rdi` because you want to call `system("sh")`, you can use `OnePunch` to make your life easier:
