@@ -32,5 +32,10 @@ cmake --build build -j4
 ./build/OnePunch
 ```
 
+## TODO
+- [ ] Support specifying the range of input registers
+- [ ] Support specifying the range of output registers
+- [ ] Support analyzing multiple binaries
+
 ## Note
 The code is messy right now. 

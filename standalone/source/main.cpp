@@ -15,10 +15,11 @@ using namespace std;
 
 namespace {
   void PrintUsageAndExit() {
-    cout << "Example: ./OnePunch -i rdi rsi -c rsp:0 rbp:1 -f libc.so.6" << endl;
-    cout << "1 means completely control the value of the register, and 0 means the register might "
-            "have to be a pointer"
-         << endl;
+    std::cout << "Example: ./OnePunch -i rdi rsi -c rsp:0 rbp:1 -f libc.so.6" << std::endl;
+    std::cout
+        << "1 means we want to completely control the value of the register, and 0 means we allow "
+           "the register to be a pointer value as long as it can point to a buffer that we control."
+        << std::endl;
     exit(-1);
   }
 }  // namespace
