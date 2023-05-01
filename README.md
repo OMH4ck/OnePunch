@@ -32,6 +32,23 @@ cmake --build build -j4
 ./build/OnePunch
 ```
 
+## Usage
+```bash
+./build/OnePunch -h
+
+Usage: OnePunch [-h] --input VAR... --control VAR... --file VAR [--level VAR]
+
+Optional arguments:
+  -h, --help    shows help message and exits 
+  -v, --version prints version information and exits 
+  -i, --input   The registers that we control [nargs: 1 or more] [required]
+  -c, --control The registers we want to control [nargs: 1 or more] [required]
+  -f, --file    The binary file that we want to analyze [required]
+  -l, --level   The search level [default: 1]
+Example: ./OnePunch -i rdi rsi -c rsp:0 rbp:1 -f libc.so.6
+1 means we want to completely control the value of the register, and 0 means we allow the register to be a pointer value as long as it can point to a buffer that we control.
+```
+
 ## TODO
 - [ ] Support specifying the range of input registers
 - [ ] Support specifying the range of output registers
