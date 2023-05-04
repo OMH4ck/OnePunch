@@ -8,15 +8,14 @@
 
 //#define DBG
 using namespace std;
-/* copy from other segment */
-Segment::Segment(vector<Instruction *> &inst_list) {
+Segment::Segment(vector<InstrPtr> &inst_list) {
   this->inst_list_ = inst_list;
   this->useful_inst_index_ = 0;
 }
 
-void Segment::set_inst_list(vector<Instruction *> &inst_list) { this->inst_list_ = inst_list; }
+void Segment::set_inst_list(vector<InstrPtr> &inst_list) { this->inst_list_ = inst_list; }
 
-vector<Instruction *> Segment::get_inst_list() { return this->inst_list_; }
+vector<InstrPtr> Segment::get_inst_list() { return this->inst_list_; }
 
 string Segment::to_string(bool display_offset = true) const {
   string res;
@@ -32,14 +31,13 @@ Segment::~Segment() {
   // delete this;
 }
 
-/* constructor for Instruction */
 Instruction::Instruction(unsigned long offset, string opcode, string operands) : offset_(offset) {
-  this->op_src_ = nullptr;
-  this->op_dst_ = nullptr;
   this->opcode_ = transfer_op(opcode);
+  this->op_src_ = std::nullopt;
+  this->op_dst_ = std::nullopt;
   // assert(this->opcode_ != OP_NONE);
   if (this->opcode_ == OP_IMUL || this->opcode_ == OP_NONE) return;
-  vector<Operand *> operand_list;
+  vector<Operand> operand_list;
 #ifdef DBG
   cout << opcode;
 #endif
@@ -88,7 +86,7 @@ OPERATION_LENGTH check_operation_length(const string &operand) {
   }
 }
 
-void Instruction::parse_operands(string &operands, vector<Operand *> &operand_list) {
+void Instruction::parse_operands(string &operands, vector<Operand> &operand_list) {
   // to do
   // fill into operand_list
   std::stringstream ss(operands);
@@ -184,9 +182,8 @@ void Instruction::parse_operands(string &operands, vector<Operand *> &operand_li
     cout << ", imm_sym=" << imm_sym << ", imm=" << imm
          << ", operation_length_=" << operation_length_ << endl;
 #endif
-    auto operand = new Operand(is_dereference, is_contain_seg_reg, reg_list, imm_sym, imm,
-                               operation_length_);
-    operand->imm_ = imm;
+    Operand operand(is_dereference, is_contain_seg_reg, reg_list, imm_sym, imm, operation_length_);
+    operand.imm_ = imm;
     operand_list.push_back(operand);
   }
 
@@ -201,8 +198,8 @@ string Instruction::to_string(bool display_offset = true) const {
   char res[100] = {0};
   string operand_str;
 
-  if (op_dst_) operand_str += op_dst_->to_string() + ",";  // BUG
-  if (op_src_) operand_str += op_src_->to_string() + ",";  // BUG
+  if (op_dst_.has_value()) operand_str += op_dst_.value().to_string() + ",";  // BUG
+  if (op_src_.has_value()) operand_str += op_src_.value().to_string() + ",";  // BUG
 
   auto sz = operand_str.size();
   if (sz != 0) operand_str = operand_str.substr(0, sz - 1);
@@ -217,14 +214,7 @@ string Instruction::to_string(bool display_offset = true) const {
   return string(res);
 }
 
-Instruction::~Instruction() {
-  if (op_src_) delete op_src_;
-  if (op_dst_) delete op_dst_;
-
-  // delete this;
-}
-
-string Operand::to_string() {
+string Operand::to_string() const {
   string res = " ";
 
   if (this->is_dereference_) res += this->transfer_operation_len_to_str(operation_length_) + "[";
@@ -285,7 +275,7 @@ bool Operand::contain_reg(REG reg) {
   return false;
 }
 
-REG Operand::get_reg_op() {
+REG Operand::get_reg_op() const {
   assert(reg_num_ == 1);
   return reg_list_[0].first;
 }
@@ -349,10 +339,10 @@ bool Operand::is_literal_number() {
   return reg_num_ == 0 && is_dereference_ == false && literal_num_;
 }
 
-vector<Instruction *> get_disasm_code(string filename) {
+vector<InstrPtr> get_disasm_code(string filename) {
   array<char, 256> buf;
   string cmd("objdump -M intel --no-show-raw-insn -d " + filename);
-  vector<Instruction *> res;
+  vector<InstrPtr> res;
   string disasm;
 
   auto pipe = popen(cmd.c_str(), "r");
@@ -391,7 +381,7 @@ vector<Instruction *> get_disasm_code(string filename) {
     auto opcode_str = inst_str.substr(0, opcode_pos);
     auto operand_str = inst_str.substr(opcode_pos + 1);
 
-    auto inst_ptr = new Instruction(offset, opcode_str, operand_str);
+    auto inst_ptr = std::make_shared<Instruction>(offset, opcode_str, operand_str);
     inst_ptr->original_inst_ = line;
     res.push_back(inst_ptr);
   }
@@ -399,10 +389,10 @@ vector<Instruction *> get_disasm_code(string filename) {
   return res;
 }
 
-bool is_interesting(Operand *operand) {
+bool is_interesting(const Operand &operand) {
   // const vector<string> regs_64 = {"rax", "rbx", "rsi", "rdi", "rdx", "rcx", "r8",
   //                               "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rbp", "rsp"};
-  for (const auto &each : operand->reg_list_) {
+  for (const auto &each : operand.reg_list_) {
     if (each.first > REG_64_START && each.first < REG_64_END) {
       return each.first != REG_RIP;
     }
@@ -429,17 +419,17 @@ bool is_unwanted_instructions(OPCODE opcode) {
   return false;
 }
 
-vector<Segment *> get_call_segment(vector<Instruction *> &insts) {
+vector<SegmentPtr> get_call_segment(vector<InstrPtr> &insts) {
   int start = 0;
   const int size = insts.size();
   std::unordered_map<std::string, size_t> duplicate_helper = {};
 
-  vector<Segment *> result;
+  vector<SegmentPtr> result;
 
   for (int idx = 0; idx < size; idx++) {
     auto inst = insts[idx];
     if (inst->opcode_ == OPCODE::OP_CALL || inst->opcode_ == OPCODE::OP_JMP) {
-      if (inst->op_dst_ == NULL || is_interesting(inst->op_dst_) == false
+      if (!inst->op_dst_.has_value() || is_interesting(inst->op_dst_.value()) == false
           || inst->op_dst_->contain_reg(REG_RIP)) {
         continue;
       }
@@ -478,14 +468,14 @@ vector<Segment *> get_call_segment(vector<Instruction *> &insts) {
       // for (auto del = 0; del < start; del++)
       //     delete insts[del];
 
-      vector<Instruction *> inst_list;
+      vector<InstrPtr> inst_list;
       for (int tmp_idx = start; tmp_idx < idx + 1; tmp_idx++) inst_list.push_back(insts[tmp_idx]);
 
       if (inst_list.size() <= 1) {
         continue;
       }
 
-      auto seg = new Segment(inst_list);
+      SegmentPtr seg = std::make_shared<Segment>(inst_list);
 
       std::string tmp_asm = seg->to_string(false);
 
@@ -502,8 +492,8 @@ vector<Segment *> get_call_segment(vector<Instruction *> &insts) {
 }
 
 unsigned long locate_next_inst_addr(unsigned long offset,
-                                    const vector<pair<Segment *, unsigned>> &code_segments) {
-  /*Instruction *res = NULL;
+                                    const vector<pair<SegmentPtr, unsigned>> &code_segments) {
+  /*InstrPtrres = NULL;
   bool is_find = false;
   for (auto inst : segment->inst_list_) {
       if (offset == inst->offset_) {
@@ -721,7 +711,7 @@ REG find_reg64(REG r) {
   return r;
 }
 
-string Operand::transfer_operation_len_to_str(OPERATION_LENGTH length) {
+string Operand::transfer_operation_len_to_str(OPERATION_LENGTH length) const {
   string res;
   switch (length) {
     case kNONE:
