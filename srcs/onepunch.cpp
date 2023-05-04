@@ -6,10 +6,13 @@ long MEM_INF = 0x10000000;
 
 // static const char *g_type_strings[] = {"CallValue", "MemValue", "CallRegValue", "OtherValue"};
 
-map<unsigned long, vector<Segment *>> Preprocessor::result_;
-map<Segment *, unsigned long> Preprocessor::test_;
+map<unsigned long, vector<SegmentPtr>> Preprocessor::result_;
+map<SegmentPtr, unsigned long> Preprocessor::test_;
 vector<shared_ptr<Memory>> MEM_LIST;
 bool RECORD_MEM = false;
+
+void collect_input_output_regs(const SegmentPtr segment, set<REG> &input_regs,
+                               set<REG> &output_regs);
 
 static bool g_is_rsp_usable = true;
 static bool g_is_rbp_usable = true;
@@ -44,15 +47,7 @@ inline void set_rsp_usable(bool flag) { g_is_rsp_usable = flag; }
 
 inline void set_rbp_usable(bool flag) { g_is_rbp_usable = flag; }
 
-void Preprocessor::process(const vector<Segment *> &segments) {
-  for (auto i : segments) {
-    auto res = compute_constraint(i);
-    // cout << std::hex << res << endl;
-    test_[i] = res;
-  }
-}
-
-unsigned long compute_constraint(const Segment *segment) {
+unsigned long compute_constraint(const SegmentPtr segment) {
   set<REG> input_regs, output_regs;
   collect_input_output_regs(segment, input_regs, output_regs);
   /*
@@ -82,6 +77,14 @@ unsigned long compute_constraint(const Segment *segment) {
   return res;
 }
 
+void Preprocessor::process(const vector<SegmentPtr> &segments) {
+  for (const auto &i : segments) {
+    auto res = compute_constraint(i);
+    // cout << std::hex << res << endl;
+    test_[i] = res;
+  }
+}
+
 bool opcode_dst_control(OPCODE opcode) {
   static set<OPCODE> m_opcode = {OP_MOV, OP_LEA, OP_POP};
   return m_opcode.find(opcode) != m_opcode.end();
@@ -106,7 +109,7 @@ bool opcode_src_control(OPCODE opcode){
 }
 */
 
-void collect_input_output_regs(const Segment *segment, set<REG> &input_regs,
+void collect_input_output_regs(const SegmentPtr segment, set<REG> &input_regs,
                                set<REG> &output_regs) {
   for (auto idx = segment->useful_inst_index_; idx != segment->inst_list_.size(); ++idx) {
     const auto &inst = segment->inst_list_[idx];
@@ -144,7 +147,7 @@ unsigned long hash_reg_list(const set<REG> &reg_list) {
   return res;
 }
 
-unsigned long hash_reg_list(const list<Register *> &reg_list) {
+unsigned long hash_reg_list(const list<RegisterPtr> &reg_list) {
   unsigned long res = 0;
   for (auto i : reg_list) {
     res |= 1 << ((unsigned long)(i->name_));
@@ -290,7 +293,7 @@ Register::Register(bool alloc_mem) {
   }
 }
 
-Register::Register(Register *reg) {
+Register::Register(RegisterPtr reg) {
   this->name_ = reg->name_;
   this->base_offset_ = reg->base_offset_;
   this->input_src_ = reg->input_src_;
@@ -304,7 +307,7 @@ Register::Register(Register *reg) {
   this->mem_->content_ = reg->mem_->content_;
 }
 
-void Register::alias(const Register *reg, bool copy_mem) {
+void Register::alias(const RegisterPtr reg, bool copy_mem) {
   if (copy_mem) {
     this->mem_ = reg->mem_;
   }
@@ -353,7 +356,7 @@ string Register::get_input_relation() const {
   return relation;
 }
 
-void Register::set_input_relation(const Register *reg, long offset, bool action) {
+void Register::set_input_relation(const RegisterPtr reg, long offset, bool action) {
   this->input_src_ = reg->get_input_relation();
   this->input_action_ = action;
   this->input_offset_ = offset;
@@ -372,20 +375,20 @@ string Memory::get_input_relation() const {
   return relation;
 }
 
-void Memory::set_input_relation(const Register *reg, long offset, bool action) {
+void Memory::set_input_relation(const RegisterPtr reg, long offset, bool action) {
   this->input_src_ = reg->get_input_relation();
   this->input_action_ = action;
   this->input_offset_ = offset;
 }
 
-bool is_in_input(REG reg, const list<Register *> &reg_list) {
+bool is_in_input(REG reg, const list<RegisterPtr> &reg_list) {
   for (auto &iter : reg_list) {
     if (iter->name_ == reg) return true;
   }
   return false;
 }
 
-unsigned remove_useless_instructions(Segment *inst_list, const list<Register *> &reg_list) {
+unsigned remove_useless_instructions(SegmentPtr inst_list, const list<RegisterPtr> &reg_list) {
   unsigned int index = inst_list->useful_inst_index_;
   auto &insts = inst_list->inst_list_;
   unsigned int siz = insts.size();
@@ -438,22 +441,21 @@ unsigned remove_useless_instructions(Segment *inst_list, const list<Register *> 
   return index;
 }
 
-Register *get_reg_by_idx(REG reg, const list<Register *> &reg_list) {
+RegisterPtr get_reg_by_idx(REG reg, const list<RegisterPtr> &reg_list) {
   for (auto &iter : reg_list) {
     if (iter->name_ == reg) return iter;
   }
   return nullptr;
 }
 
-void remove_reg(Register *reg_to_remove, list<Register *> &reg_list) {
+void remove_reg(RegisterPtr reg_to_remove, list<RegisterPtr> &reg_list) {
   reg_list.remove(reg_to_remove);
 }
 
-void remove_reg_by_idx(REG reg, list<Register *> &reg_list) {
+void remove_reg_by_idx(REG reg, list<RegisterPtr> &reg_list) {
   for (auto iter = reg_list.begin(); iter != reg_list.end(); iter++) {
     assert((*iter) != nullptr);
     if ((*iter)->name_ == reg) {
-      delete (*iter);
       reg_list.erase(iter);
       return;
     }
@@ -461,7 +463,7 @@ void remove_reg_by_idx(REG reg, list<Register *> &reg_list) {
   // reg_list.remove_if([](Register* n){return n->name_ == reg;});
 }
 
-void remove_reg_and_alias(Register *reg_to_remove, list<Register *> &reg_list) {
+void remove_reg_and_alias(RegisterPtr reg_to_remove, list<RegisterPtr> &reg_list) {
   shared_ptr<Memory> tmp = reg_to_remove->mem_;
   for (auto &iter : reg_list) {
     if (iter->mem_ == tmp) {
@@ -472,14 +474,14 @@ void remove_reg_and_alias(Register *reg_to_remove, list<Register *> &reg_list) {
   // reg_list.remove_if([](Register* n){return n->mem_ == tmp;});
 }
 
-Register *make_alias(REG alias_reg_name, Register *reg, bool copy_mem) {
-  auto new_reg = new Register(false);
+RegisterPtr make_alias(REG alias_reg_name, RegisterPtr reg, bool copy_mem) {
+  auto new_reg = std::make_shared<Register>(false);
   new_reg->name_ = alias_reg_name;
   new_reg->alias(reg, copy_mem);
   return new_reg;
 }
 
-Register *get_reg_by_relation(const string &relation, const list<Register *> &reg_list) {
+RegisterPtr get_reg_by_relation(const string &relation, const list<RegisterPtr> &reg_list) {
   // cout << "offset=" << offset << ", inst:" << inst_str << endl;
   for (auto reg : reg_list) {
     if (reg->get_input_relation() == relation) {
@@ -490,13 +492,13 @@ Register *get_reg_by_relation(const string &relation, const list<Register *> &re
   return nullptr;
 }
 
-bool contain_uncontrol_memory_access(const Instruction *inst, const list<Register *> &reg_list) {
+bool contain_uncontrol_memory_access(const InstrPtr inst, const list<RegisterPtr> &reg_list) {
   unsigned op_num = inst->operand_num_;
 
   if (op_num == 0 || inst->opcode_ == OP_LEA || inst->opcode_ == OP_NOP) return false;
   auto operand = inst->op_dst_;
   if (operand->is_dereference_ == false) {
-    if (inst->op_src_ == nullptr || inst->op_src_->is_dereference_ == false) return false;
+    if (!inst->op_src_.has_value() || inst->op_src_->is_dereference_ == false) return false;
     operand = inst->op_src_;
   }
   if (operand->contain_segment_reg()) return false;
@@ -510,10 +512,10 @@ bool contain_uncontrol_memory_access(const Instruction *inst, const list<Registe
   return false;
 }
 
-list<Register *> prepare_reg_list(const vector<REG> &reg_name_list) {
-  list<Register *> List;
+list<RegisterPtr> prepare_reg_list(const vector<REG> &reg_name_list) {
+  list<RegisterPtr> List;
   for (auto &inter : reg_name_list) {
-    Register *reg = new Register();
+    RegisterPtr reg = std::make_shared<Register>();
     reg->name_ = inter;
     // reg->mem_ = make_shared<Memory>();
     // if(RECORD_MEM)
@@ -527,7 +529,7 @@ list<Register *> prepare_reg_list(const vector<REG> &reg_name_list) {
   return List;
 }
 
-bool xchg_handler(const Instruction *inst, list<Register *> &reg_list, bool record_flag) {
+bool xchg_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
   auto op_src = inst->op_src_;
   auto op_dst = inst->op_dst_;
   assert(op_src && op_dst);
@@ -591,7 +593,7 @@ bool xchg_handler(const Instruction *inst, list<Register *> &reg_list, bool reco
 
   auto reg_dst = op_dst->get_reg_op();
   remove_reg_by_idx(reg_dst, reg_list);
-  auto new_reg = new Register();
+  auto new_reg = std::make_shared<Register>();
   new_reg->name_ = reg_dst;
   if (record_flag) {
     new_reg->set_input_relation(src_ptr, src_range.second.first, true);
@@ -600,7 +602,7 @@ bool xchg_handler(const Instruction *inst, list<Register *> &reg_list, bool reco
   return true;
 }
 
-bool mov_handler(const Instruction *inst, list<Register *> &reg_list, bool record_flag) {
+bool mov_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
   auto op_dst = inst->op_dst_;
   auto op_src = inst->op_src_;
 
@@ -674,7 +676,7 @@ bool mov_handler(const Instruction *inst, list<Register *> &reg_list, bool recor
     auto reg_ptr = get_reg_by_idx(reg_src, reg_list);
     if (reg_ptr->contain_range(range.second)) {
       reg_ptr->remove_range(range.second);
-      auto new_reg = new Register();
+      auto new_reg = std::make_shared<Register>();
       new_reg->name_ = reg_dst;
       new_reg->set_input_relation(reg_ptr, op_src->imm_, true);
 
@@ -707,14 +709,14 @@ bool mov_handler(const Instruction *inst, list<Register *> &reg_list, bool recor
   return true;
 }
 
-bool is_alias(REG reg, const list<Register *> &reg_list) {
+bool is_alias(REG reg, const list<RegisterPtr> &reg_list) {
   auto reg_ptr = get_reg_by_idx(reg, reg_list);
   if (reg_ptr == nullptr) return false;
   if (reg_ptr->mem_->ref_count_ > 1) return true;
   return false;
 }
 
-bool lea_handler(const Instruction *inst, list<Register *> &reg_list) {
+bool lea_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
   auto op_dst = inst->op_dst_;
   auto op_src = inst->op_src_;
 
@@ -743,7 +745,7 @@ bool lea_handler(const Instruction *inst, list<Register *> &reg_list) {
   return true;
 }
 
-bool pop_handler(const Instruction *inst, list<Register *> &reg_list, bool record_flag) {
+bool pop_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
   auto op_dst = inst->op_dst_;
   assert(op_dst->reg_num_ == 1);
   auto reg_dst = op_dst->reg_list_[0].first;
@@ -758,7 +760,7 @@ bool pop_handler(const Instruction *inst, list<Register *> &reg_list, bool recor
   if (is_in_input(REG_RSP, reg_list)) {
     auto rsp = get_reg_by_idx(REG_RSP, reg_list);
     if (rsp->contain_range(make_pair(0, 8))) {
-      auto new_reg = new Register();
+      auto new_reg = std::make_shared<Register>();
       new_reg->name_ = reg_dst;
       new_reg->set_input_relation(rsp, 0, true);
 
@@ -779,7 +781,7 @@ bool pop_handler(const Instruction *inst, list<Register *> &reg_list, bool recor
   return true;
 }
 
-bool add_sub_handler(const Instruction *inst, list<Register *> &reg_list) {
+bool add_sub_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
   auto op_dst = inst->op_dst_;
   auto op_src = inst->op_src_;
 
@@ -836,18 +838,18 @@ bool add_sub_handler(const Instruction *inst, list<Register *> &reg_list) {
   return true;
 }
 
-bool push_handler(const Instruction *inst, list<Register *> &reg_list) {
+bool push_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
   auto rsp_ptr = get_reg_by_idx(REG_RSP, reg_list);
   if (rsp_ptr == nullptr) return true;
 
-  auto range = inst->op_dst_->get_used_range();
+  auto range = inst->op_dst_.value().get_used_range();
   if (rsp_ptr->contain_range(range.second) == false) return false;
   rsp_ptr->base_offset_ -= 8;
   rsp_ptr->set_input_relation(rsp_ptr, -8, false);
   return true;
 }
 
-bool bitwise_handler(const Instruction *inst, list<Register *> &reg_list) {
+bool bitwise_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
   auto op_dst = inst->op_dst_;
 
   if (op_dst->is_dereference_) {
@@ -868,7 +870,7 @@ bool bitwise_handler(const Instruction *inst, list<Register *> &reg_list) {
   return true;
 }
 
-bool branch_handler(const Instruction *inst, list<Register *> &reg_list, bool record_flag) {
+bool branch_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
   auto op_dst = inst->op_dst_;
 
   if (op_dst->is_dereference_) {
@@ -927,8 +929,7 @@ bool branch_handler(const Instruction *inst, list<Register *> &reg_list, bool re
   return true;
 }
 
-bool execute_one_instruction(const Instruction *inst, list<Register *> &reg_list,
-                             bool record_flag) {
+bool execute_one_instruction(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
   if (contain_uncontrol_memory_access(inst, reg_list)) {
     return false;
   }
@@ -981,7 +982,7 @@ bool execute_one_instruction(const Instruction *inst, list<Register *> &reg_list
   return flag;
 }
 
-bool execute_instructions(const Segment *instructions, list<Register *> &reg_list,
+bool execute_instructions(const SegmentPtr instructions, list<RegisterPtr> &reg_list,
                           bool record_flag) {
   unsigned start_idx = instructions->useful_inst_index_;
   for (; start_idx < instructions->inst_list_.size(); start_idx++) {
@@ -1001,9 +1002,9 @@ bool execute_instructions(const Segment *instructions, list<Register *> &reg_lis
 
 set<unsigned long> g_visited;
 
-bool dfs(vector<Segment *> &code_segments, const vector<pair<REG, int>> &must_control_list,
-         const list<Register *> &reg_list, list<Register *> &output_register,
-         vector<pair<Segment *, unsigned>> &output_segments, unsigned long search_level) {
+bool dfs(vector<SegmentPtr> &code_segments, const vector<pair<REG, int>> &must_control_list,
+         const list<RegisterPtr> &reg_list, list<RegisterPtr> &output_register,
+         vector<pair<SegmentPtr, unsigned>> &output_segments, unsigned long search_level) {
   // If the same reg list (regardless of memory) has been explored, skip
   auto tmp_h = hash_reg_list(reg_list);
   if (search_level == 1) {
@@ -1072,16 +1073,16 @@ bool dfs(vector<Segment *> &code_segments, const vector<pair<REG, int>> &must_co
   return false;
 }
 
-bool is_independent(REG reg, const list<Register *> &reg_list) {
+bool is_independent(REG reg, const list<RegisterPtr> &reg_list) {
   if (is_alias(reg, reg_list)) return false;
-  Register *regptr = get_reg_by_idx(reg, reg_list);
+  RegisterPtr regptr = get_reg_by_idx(reg, reg_list);
   if (regptr == nullptr) return false;
   if (regptr->mem_->range_.size() == 1) return true;
   return false;
 }
 
 bool is_solution(const vector<pair<REG, int>> &must_control_list,
-                 const list<Register *> &reg_list) {
+                 const list<RegisterPtr> &reg_list) {
   bool flag = true;
 
   for (auto &reg : must_control_list) {
@@ -1099,10 +1100,10 @@ bool is_solution(const vector<pair<REG, int>> &must_control_list,
 }
 
 void record_memory(const vector<REG> &reg_name_list,
-                   vector<pair<Segment *, unsigned>> &code_segments,
+                   vector<pair<SegmentPtr, unsigned>> &code_segments,
                    const vector<pair<REG, int>> &must_control_list) {
   RECORD_MEM = true;
-  list<Register *> reg_list = prepare_reg_list(reg_name_list);
+  list<RegisterPtr> reg_list = prepare_reg_list(reg_name_list);
   for (auto &iter : code_segments) {
     iter.first->useful_inst_index_ = iter.second;
     execute_instructions(iter.first, reg_list, true);
@@ -1126,25 +1127,25 @@ void record_memory(const vector<REG> &reg_name_list,
   }
 }
 
-bool minimize_segment(list<Register *> &sol_register,
-                      vector<pair<Segment *, unsigned>> &sol_segements,
-                      const list<Register *> &input_regs,
+bool minimize_segment(list<RegisterPtr> &sol_register,
+                      vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                      const list<RegisterPtr> &input_regs,
                       const vector<pair<REG, int>> &must_control_list);
-bool minimize_instruction(list<Register *> &sol_register,
-                          vector<pair<Segment *, unsigned>> &sol_segements,
-                          const list<Register *> &input_regs,
+bool minimize_instruction(list<RegisterPtr> &sol_register,
+                          vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                          const list<RegisterPtr> &input_regs,
                           const vector<pair<REG, int>> &must_control_list);
-bool run_segment_list(vector<pair<Segment *, unsigned>> &run_code, list<Register *> &registers);
-void minimize_segment_nb(list<Register *> &sol_register,
-                         vector<pair<Segment *, unsigned>> &sol_segements,
-                         const list<Register *> &input_regs,
+bool run_segment_list(vector<pair<SegmentPtr, unsigned>> &run_code, list<RegisterPtr> &registers);
+void minimize_segment_nb(list<RegisterPtr> &sol_register,
+                         vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                         const list<RegisterPtr> &input_regs,
                          const vector<pair<REG, int>> &must_control_list, int idx,
-                         vector<pair<Segment *, unsigned>> &run_code,
-                         vector<pair<Segment *, unsigned>> &orig_segements);
+                         vector<pair<SegmentPtr, unsigned>> &run_code,
+                         vector<pair<SegmentPtr, unsigned>> &orig_segements);
 
-void minimize_result(list<Register *> &sol_register,
-                     vector<pair<Segment *, unsigned>> &sol_segements,
-                     const list<Register *> &input_regs,
+void minimize_result(list<RegisterPtr> &sol_register,
+                     vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                     const list<RegisterPtr> &input_regs,
                      const vector<pair<REG, int>> &must_control_list) {
   while (true) {
     bool segment_minimize, deep_minimize;
@@ -1175,12 +1176,12 @@ void minimize_result(list<Register *> &sol_register,
   return;
 }
 
-void minimize_segment_nb(list<Register *> &sol_register,
-                         vector<pair<Segment *, unsigned>> &sol_segements,
-                         const list<Register *> &input_regs,
+void minimize_segment_nb(list<RegisterPtr> &sol_register,
+                         vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                         const list<RegisterPtr> &input_regs,
                          const vector<pair<REG, int>> &must_control_list, int idx,
-                         vector<pair<Segment *, unsigned>> &run_code,
-                         vector<pair<Segment *, unsigned>> &orig_segements) {
+                         vector<pair<SegmentPtr, unsigned>> &run_code,
+                         vector<pair<SegmentPtr, unsigned>> &orig_segements) {
   for (size_t i = idx; i < orig_segements.size(); i++) {
     run_code.push_back(orig_segements[i]);
     auto registers = copy_reg_list(input_regs);
@@ -1203,12 +1204,12 @@ void minimize_segment_nb(list<Register *> &sol_register,
   }
 }
 
-bool minimize_segment(list<Register *> &sol_register,
-                      vector<pair<Segment *, unsigned>> &sol_segements,
-                      const list<Register *> &input_regs,
+bool minimize_segment(list<RegisterPtr> &sol_register,
+                      vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                      const list<RegisterPtr> &input_regs,
                       const vector<pair<REG, int>> &must_control_list) {
   auto solution_size = sol_segements.size();
-  vector<pair<Segment *, unsigned>> tmp;
+  vector<pair<SegmentPtr, unsigned>> tmp;
   auto orig_segment = sol_segements;
   vector<int> log;
   minimize_segment_nb(sol_register, sol_segements, input_regs, must_control_list, 0, tmp,
@@ -1217,9 +1218,9 @@ bool minimize_segment(list<Register *> &sol_register,
   return solution_size != sol_segements.size();
 }
 
-bool minimize_instruction(list<Register *> &sol_register,
-                          vector<pair<Segment *, unsigned>> &sol_segements,
-                          const list<Register *> &input_regs,
+bool minimize_instruction(list<RegisterPtr> &sol_register,
+                          vector<pair<SegmentPtr, unsigned>> &sol_segements,
+                          const list<RegisterPtr> &input_regs,
                           const vector<pair<REG, int>> &must_control_list) {
   bool is_optimized = false;
   for (auto &segment_info : sol_segements) {
@@ -1248,7 +1249,7 @@ bool minimize_instruction(list<Register *> &sol_register,
   return is_optimized;
 }
 
-bool run_segment_list(vector<pair<Segment *, unsigned>> &run_code, list<Register *> &registers) {
+bool run_segment_list(vector<pair<SegmentPtr, unsigned>> &run_code, list<RegisterPtr> &registers) {
   for (auto &segment_info : run_code) {
     auto segment = segment_info.first;
     auto segment_inst_index = segment_info.second;
@@ -1259,17 +1260,16 @@ bool run_segment_list(vector<pair<Segment *, unsigned>> &run_code, list<Register
   return true;
 }
 
-void delete_reg_list(list<Register *> &reg_list) {
+void delete_reg_list(list<RegisterPtr> &reg_list) {
   for (auto reg : reg_list) {
-    delete reg;
   }
 }
 
-list<Register *> copy_reg_list(list<Register *> reg_list) {
-  list<Register *> result;
+list<RegisterPtr> copy_reg_list(list<RegisterPtr> reg_list) {
+  list<RegisterPtr> result;
 
   for (auto reg : reg_list) {
-    auto new_reg = new Register(reg);
+    auto new_reg = std::make_shared<Register>(reg);
     for (auto reg2 : result) {
       if (reg2->mem_->mem_id_ == new_reg->mem_->mem_id_) {
         new_reg->mem_ = reg2->mem_;
@@ -1281,7 +1281,7 @@ list<Register *> copy_reg_list(list<Register *> reg_list) {
   return result;
 }
 
-Register *get_reg(REG reg, const list<Register *> &reg_list) {
+RegisterPtr get_reg(REG reg, const list<RegisterPtr> &reg_list) {
   for (const auto &each : reg_list) {
     if (each->name_ == reg) {
       return each;
@@ -1291,9 +1291,9 @@ Register *get_reg(REG reg, const list<Register *> &reg_list) {
 }
 
 void match_and_print(vector<shared_ptr<Memory>> mem_list,
-                     const vector<pair<Segment *, unsigned>> &code_segments,
+                     const vector<pair<SegmentPtr, unsigned>> &code_segments,
                      const vector<pair<REG, int>> &must_control_list,
-                     const list<Register *> &reg_list) {
+                     const list<RegisterPtr> &reg_list) {
   unsigned long real_addr = -1;
 
   for (const auto &each : mem_list) {
@@ -1338,8 +1338,8 @@ void OnePunch::Run() {
   auto instruction_list = get_disasm_code(input_file_);
   auto code_segments = get_call_segment(instruction_list);
   random_shuffle(code_segments.begin(), code_segments.end());
-  list<Register *> output_reg_list;
-  vector<pair<Segment *, unsigned>> output_segments;
+  list<RegisterPtr> output_reg_list;
+  vector<pair<SegmentPtr, unsigned>> output_segments;
   cout << "Segment size: " << code_segments.size() << endl;
   cout << "Collect segment time: " << get_cur_time() - t_start << endl;
   t_start = get_cur_time();
@@ -1379,7 +1379,7 @@ void OnePunch::Run() {
   cout << "DFS time: " << get_cur_time() - t_start << endl;
   t_start = get_cur_time();
   cout << "after minimize:" << endl;
-  list<Register *> sol_reg;
+  list<RegisterPtr> sol_reg;
   minimize_result(sol_reg, output_segments, input_regs_, must_control_list_);
   for (auto &i : output_segments) {
     for (auto idx = i.second; idx < i.first->inst_list_.size(); idx++) {
@@ -1391,17 +1391,9 @@ void OnePunch::Run() {
 
   // TODO: Fix the bug in record_memory before we can enable this feature.
   // record_memory(controlled_regs, output_segments, must_control_list_);
-
-  for (auto &each : instruction_list) {
-    delete each;
-  }
-
-  for (auto &each : code_segments) {
-    delete each;
-  }
 }
 
-std::optional<std::list<Register *>> ParseInputRegs(std::vector<std::string> input_regs) {
+std::optional<std::list<RegisterPtr>> ParseInputRegs(std::vector<std::string> input_regs) {
   vector<REG> control_reg_for_prepare;
   map<REG, vector<pair<long, long>>> control_reg_remove_ranges;
   for (auto i : input_regs) {

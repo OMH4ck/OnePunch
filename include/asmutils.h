@@ -1,10 +1,13 @@
 #ifndef __HEADER_ASMUTILS__
 #define __HEADER_ASMUTILS__
 
+#include <memory>
+#include <optional>
+
 #include "common.h"
 #include "utils.h"
 
-/* for Instruction */
+/* for InstrPtr */
 enum OPCODE {
   OP_NONE = 0,
   OP_MOV,
@@ -149,46 +152,27 @@ class Segment;
 class Instruction;
 class Operand;
 
+using InstrPtr = std::shared_ptr<Instruction>;
+using SegmentPtr = std::shared_ptr<Segment>;
+
 class Segment {
 public:
-  Segment(vector<Instruction *> &inst_list);
+  Segment(vector<InstrPtr> &inst_list);
   bool operator==(const Segment &rhs) const {
     return this->to_string(false) == rhs.to_string(false);
   }
 
-  void set_inst_list(vector<Instruction *> &inst_list);
-  vector<Instruction *> get_inst_list();
+  void set_inst_list(vector<InstrPtr> &inst_list);
+  vector<InstrPtr> get_inst_list();
   string to_string(bool display_offset) const;
   void set_useful_inst_index(unsigned int idx);
 
   unsigned int useful_inst_index_ = 0;
   // void remove_prefix_insns(vector<string> &remove_list); //should be done in get_call_segment
-  vector<Instruction *> inst_list_;
+  vector<InstrPtr> inst_list_;
   const string asm_text;
   void print_inst() const;
   ~Segment();
-};
-
-class Instruction {
-public:
-  Instruction(unsigned long offset, string opcode, string operands);
-
-  bool is_reg_operation();
-
-  string to_string(bool display_offset) const;
-
-  unsigned long offset_;
-  OPCODE opcode_;
-  Operand *op_src_;
-  Operand *op_dst_;
-  unsigned int operand_num_;
-  OPERATION_LENGTH operation_length_;
-
-  string original_inst_;
-
-  OPCODE transfer_op(string &op_str);  // transfer string to OPCODE. see utils.h
-  void parse_operands(string &operands, vector<Operand *> &operand_list);
-  ~Instruction();
 };
 
 /* e.g. DWORD PTR [rax-4*rbx+0x1000]
@@ -219,12 +203,12 @@ public:
 
   bool contain_segment_reg();  // contains special segment register e.g. 'fs:[xxx]'
 
-  REG get_reg_op();
+  REG get_reg_op() const;
   /* return <REG, <start, end>>. For no range need to be removed , return <REG_NONE, pair<0, 0>> */
   pair<REG, pair<long, long>> get_used_range();
 
-  string to_string();
-  string transfer_operation_len_to_str(OPERATION_LENGTH length);
+  string to_string() const;
+  string transfer_operation_len_to_str(OPERATION_LENGTH length) const;
 
   bool is_dereference_;
   bool contain_seg_reg_;
@@ -235,6 +219,27 @@ public:
   unsigned int reg_num_;
   OPERATION_LENGTH operation_length_;
   long imm_;
+};
+
+class Instruction {
+public:
+  Instruction(unsigned long offset, string opcode, string operands);
+
+  bool is_reg_operation();
+
+  string to_string(bool display_offset) const;
+
+  unsigned long offset_;
+  OPCODE opcode_;
+  std::optional<Operand> op_src_;
+  std::optional<Operand> op_dst_;
+  unsigned int operand_num_;
+  OPERATION_LENGTH operation_length_;
+
+  string original_inst_;
+
+  OPCODE transfer_op(string &op_str);  // transfer string to OPCODE. see utils.h
+  void parse_operands(string &operands, vector<Operand> &operand_list);
 };
 
 /* this is not using
@@ -261,14 +266,14 @@ REG get_reg_by_str(const string &str);
 string get_reg_str_by_reg(REG);
 
 string refine(string line);
-vector<Instruction *> get_disasm_code(string filename);
-vector<Segment *> get_call_segment(vector<Instruction *> &insts);
+vector<InstrPtr> get_disasm_code(string filename);
+vector<SegmentPtr> get_call_segment(vector<InstrPtr> &insts);
 
 REG find_reg64(REG r);  // e.g., transfer eax to rax. return REG_NONE if cannot find
 bool is_reg64(REG r);
-bool is_reg64_operation(Instruction *inst);
+bool is_reg64_operation(InstrPtr inst);
 
 unsigned long locate_next_inst_addr(unsigned long offset,
-                                    const vector<pair<Segment *, unsigned>> &code_segments);
+                                    const vector<pair<SegmentPtr, unsigned>> &code_segments);
 OPERATION_LENGTH check_operation_length(const string &operand);
 #endif
