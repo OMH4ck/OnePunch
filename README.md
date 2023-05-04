@@ -25,9 +25,30 @@ Result:
   174fd1:       push  0x2
   174fd3:       call  QWORD PTR [rax+0x340]
 ------
+
+...
+
+Final state
+r8:     memid:0x137, relation: r8
+        Available:[ [-INF,0x8], [0x10,0x38], [0x40,INF] ]
+        content:[ [0x8:(MEM_VALUE,0x139(memid))], [0x38:(MEM_VALUE,0x138(memid))] ]
+rax:    memid:0x138, relation: *(r8+0x38)
+        Available:[ [-INF,0x20], [0x28,0x340], [0x348,INF] ]
+        content:[ [0x20:(CALL_VALUE,0x174fc4(inst))], [0x340:(CALL_VALUE,Target RIP)] ]
+rdi:    memid:0x139, relation: *(r8+0x8)
+        Available:[ [-INF,INF] ]
 ```
 
-The number on the left is the offset of the gadget, the number of the right is the corresponding instructions.
+## Result intpretation
+The number on the left is the offset of the gadget. For the final state, it shows the memory layout we should set to make the gadget work.
+
+`memid` is a unique identifier for the buffer.
+
+`relation` is the relationship between the value of the register and the input registers. For example, `rax`'s relation shows that `rax = *(r8+0x38)`. 
+
+`Available` shows the range of the value of the register, which you can set to abitrary value.
+
+`content` shows the content of the memory we need to set. `MEM_VALUE` means we should set the address of the memory buffer. `CALL_VALUE` means we should set the address of the gadget or function we want to call (`Target RIP`).
 
 Currently `OnePunch` only supports `x86_64` architecture.
 
@@ -60,10 +81,7 @@ Example: ./OnePunch -i rdi rsi -c rsp:0 rbp:1 -f libc.so.6
 ## TODO
 - [ ] Support specifying the range of input registers
 - [ ] Support specifying the range of output registers
-- [ ] Suppprt printing how to set up the memory
 - [ ] Support analyzing multiple binaries
-
-One of the important features missing is to print out how we can set up the memory. The feature is still buggy so we disable it for now. (If you really want to use it, you can uncomment the `record_memory` in `src/onepunch.cpp`).
 
 ## Note
 The code is messy right now. 
