@@ -516,7 +516,8 @@ unsigned long locate_next_inst_addr(unsigned long offset,
       return code_segments[i + 1].first->inst_list_[code_segments[i + 1].second]->offset_;
     }
   }
-  assert(0);
+  assert(false && "This should not happen");
+  return -1;
 }
 
 REG get_reg_by_str(const string &str) {

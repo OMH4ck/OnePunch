@@ -29,7 +29,8 @@ static inline bool is_stack_frame_reg_usable(REG r) {
   else if (r == REG_RBP)
     return g_is_rbp_usable;
   else {
-    assert(0);
+    assert(false && "This should never happen");
+    return false;
   }
 }
 
@@ -1287,7 +1288,8 @@ RegisterPtr get_reg(REG reg, const list<RegisterPtr> &reg_list) {
       return each;
     }
   }
-  assert(0);
+  assert(false && "This should never happen");
+  return nullptr;
 }
 
 void match_and_print(vector<shared_ptr<Memory>> mem_list,
@@ -1390,7 +1392,7 @@ void OnePunch::Run() {
   cout << "Minimization time: " << get_cur_time() - t_start << endl;
 
   // TODO: Fix the bug in record_memory before we can enable this feature.
-  // record_memory(controlled_regs, output_segments, must_control_list_);
+  record_memory(controlled_regs, output_segments, must_control_list_);
 }
 
 std::optional<std::list<RegisterPtr>> ParseInputRegs(std::vector<std::string> input_regs) {
