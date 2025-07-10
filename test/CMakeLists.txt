@@ -22,8 +22,10 @@ CPMAddPackage("gh:doctest/doctest@2.4.9")
 
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 add_executable(${PROJECT_NAME} ${sources})
-target_link_libraries(${PROJECT_NAME} doctest::doctest OnePunch)
+target_link_libraries(${PROJECT_NAME} PRIVATE doctest::doctest OnePunch)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -g)
+target_link_libraries(${PROJECT_NAME} PRIVATE -fsanitize=address)
 
 
 # enable compiler warnings
