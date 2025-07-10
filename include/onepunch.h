@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "asmutils.h"
+
 using std::list;
 using std::map;
 using std::pair;
@@ -21,6 +22,14 @@ enum VALUETYPE {
 
 class Register;
 using RegisterPtr = std::shared_ptr<Register>;
+
+struct Solution {
+  bool found = false;
+  list<RegisterPtr> output_reg_list;
+  vector<pair<SegmentPtr, unsigned>> output_segments;
+  list<RegisterPtr> minimized_reg_list;
+};
+
 
 class Value {
 public:
@@ -191,6 +200,11 @@ public:
         must_control_list_(must_control_list),
         search_level_(search_level) {}
   void Run();
+
+  // New functions
+  Solution find_solution(vector<SegmentPtr> &code_segments);
+  void minimize_solution(Solution &solution);
+  void record_memory_stage(Solution &solution);
 
 private:
   std::string input_file_;

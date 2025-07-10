@@ -85,3 +85,5 @@ packageProject(
   COMPATIBILITY SameMajorVersion
   DEPENDENCIES "fmt 9.1.0"
 )
+
+add_subdirectory(test)

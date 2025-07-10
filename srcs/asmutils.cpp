@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
 
 #include "../include/utils.h"
 
@@ -422,7 +423,7 @@ bool is_unwanted_instructions(OPCODE opcode) {
 vector<SegmentPtr> get_call_segment(vector<InstrPtr> &insts) {
   int start = 0;
   const int size = insts.size();
-  std::unordered_map<std::string, size_t> duplicate_helper = {};
+  std::map<std::string, size_t> duplicate_helper = {};
 
   vector<SegmentPtr> result;
 

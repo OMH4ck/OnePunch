@@ -1334,14 +1334,37 @@ void match_and_print(vector<shared_ptr<Memory>> mem_list,
   }
 }
 
+// New functions
+Solution OnePunch::find_solution(vector<SegmentPtr> &code_segments) {
+  Solution sol;
+  sol.found = dfs(code_segments, must_control_list_, input_regs_, sol.output_reg_list,
+                  sol.output_segments, search_level_);
+  return sol;
+}
+
+void OnePunch::minimize_solution(Solution &solution) {
+  minimize_result(solution.minimized_reg_list, solution.output_segments, input_regs_,
+                  must_control_list_);
+}
+
+void OnePunch::record_memory_stage(Solution &solution) {
+  std::vector<REG> controlled_regs;
+  for (auto reg : input_regs_) {
+    controlled_regs.push_back(reg->name_);
+  }
+  record_memory(controlled_regs, solution.output_segments, must_control_list_);
+}
+
 void OnePunch::Run() {
-  std::srand(unsigned(std::time(0)));
+  std::srand(0);
   auto t_start = get_cur_time();
   auto instruction_list = get_disasm_code(input_file_);
   auto code_segments = get_call_segment(instruction_list);
-  random_shuffle(code_segments.begin(), code_segments.end());
-  list<RegisterPtr> output_reg_list;
-  vector<pair<SegmentPtr, unsigned>> output_segments;
+  std::sort(code_segments.begin(), code_segments.end(),
+            [](const SegmentPtr &a, const SegmentPtr &b) -> bool {
+              return a->to_string(false) < b->to_string(false);
+            });
+
   cout << "Segment size: " << code_segments.size() << endl;
   cout << "Collect segment time: " << get_cur_time() - t_start << endl;
   t_start = get_cur_time();
@@ -1350,49 +1373,35 @@ void OnePunch::Run() {
   cout << "Preprocess time: " << get_cur_time() - t_start << endl;
   t_start = get_cur_time();
 
-  // Save the regs
-  std::vector<REG> controlled_regs;
-  for (auto reg : input_regs_) {
-    controlled_regs.push_back(reg->name_);
-  }
-  if (0) {
-    for (auto i : code_segments) {
-      for (auto k : i->inst_list_) {
-        cout << k->original_inst_ << endl;
-      }
-      cout << "-------" << endl;
-    }
-  }
-  bool res = dfs(code_segments, must_control_list_, input_regs_, output_reg_list, output_segments,
-                 search_level_);
+  Solution solution = find_solution(code_segments);
 
-  if (res == false) {
+  if (solution.found == false) {
     cout << "No solution found!" << endl;
     return;
   }
 
-  std::cout << "Solution found!" << std::endl;
-  for (auto &i : output_segments) {
+  cout << "Solution found!" << std::endl;
+  for (auto &i : solution.output_segments) {
     for (auto idx = i.second; idx < i.first->inst_list_.size(); idx++) {
       cout << i.first->inst_list_[idx]->original_inst_ << endl;
     }
     cout << "------" << endl;
   }
-  cout << "DFS time: " << get_cur_time() - t_start << endl;
+  // cout << "DFS time: " << get_cur_time() - t_start << endl;
   t_start = get_cur_time();
+
+  minimize_solution(solution);
+
   cout << "after minimize:" << endl;
-  list<RegisterPtr> sol_reg;
-  minimize_result(sol_reg, output_segments, input_regs_, must_control_list_);
-  for (auto &i : output_segments) {
+  for (auto &i : solution.output_segments) {
     for (auto idx = i.second; idx < i.first->inst_list_.size(); idx++) {
       cout << i.first->inst_list_[idx]->original_inst_ << endl;
     }
     cout << "------" << endl;
   }
-  cout << "Minimization time: " << get_cur_time() - t_start << endl;
+  //cout << "Minimization time: " << get_cur_time() - t_start << endl;
 
-  // TODO: Fix the bug in record_memory before we can enable this feature.
-  record_memory(controlled_regs, output_segments, must_control_list_);
+  record_memory_stage(solution);
 }
 
 std::optional<std::list<RegisterPtr>> ParseInputRegs(std::vector<std::string> input_regs) {

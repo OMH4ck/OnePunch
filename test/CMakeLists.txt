@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14...3.22)
 
-project(OnePunchTests LANGUAGES CXX)
+project(OnePunch_Tests LANGUAGES CXX)
 
 # ---- Options ----
 
@@ -16,20 +16,15 @@ include(../cmake/tools.cmake)
 include(../cmake/CPM.cmake)
 
 CPMAddPackage("gh:doctest/doctest@2.4.9")
-CPMAddPackage("gh:TheLartians/Format.cmake@1.7.3")
-
-if(TEST_INSTALLED_VERSION)
-  find_package(OnePunch REQUIRED)
-else()
-  CPMAddPackage(NAME OnePunch SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
-endif()
+  CPMAddPackage("gh:TheLartians/Format.cmake@1.7.3")
 
 # ---- Create binary ----
 
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 add_executable(${PROJECT_NAME} ${sources})
-target_link_libraries(${PROJECT_NAME} doctest::doctest OnePunch::OnePunch)
+target_link_libraries(${PROJECT_NAME} doctest::doctest OnePunch)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+
 
 # enable compiler warnings
 if(NOT TEST_INSTALLED_VERSION)
