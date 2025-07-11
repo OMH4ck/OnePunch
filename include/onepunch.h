@@ -54,26 +54,7 @@ RegisterPtr get_reg_by_relation(const string &relation, const list<RegisterPtr> 
 bool contain_uncontrol_memory_access(const InstrPtr inst,
                                      const list<RegisterPtr> &reg_list);  // check_uncontrol_rw
 
-bool mov_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag);
 
-bool lea_handler(const InstrPtr inst, list<RegisterPtr> &reg_list);
-
-bool pop_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag);
-
-bool add_sub_handler(const InstrPtr inst, list<RegisterPtr> &reg_list);
-
-bool push_handler(const InstrPtr inst, list<RegisterPtr> &reg_list);
-
-bool bitwise_handler(const InstrPtr inst, list<RegisterPtr> &reg_list);
-
-bool xchg_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag);
-
-bool branch_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag);
-
-bool execute_one_instruction(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag);
-
-bool execute_instructions(const SegmentPtr instructions, list<RegisterPtr> &reg_list,
-                          bool record_flag);
 
 list<RegisterPtr> prepare_reg_list(const vector<REG> &reg_name_list);
 
@@ -115,6 +96,8 @@ template <typename... Args> std::string string_format(const char *format, Args..
   return result;
 }
 
+class Preprocessor;
+
 class OnePunch {
 public:
   OnePunch(std::string input_file, std::list<RegisterPtr> input_regs,
@@ -126,7 +109,7 @@ public:
   void Run();
 
   // New functions
-  Solution find_solution(vector<SegmentPtr> &code_segments);
+  Solution find_solution(vector<SegmentPtr> &code_segments, const Preprocessor& preprocessor);
   void minimize_solution(Solution &solution);
   void record_memory_stage(Solution &solution);
 

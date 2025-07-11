@@ -4,8 +4,10 @@
 #include <list>
 #include <memory>
 #include <vector>
+#include <set>
 
 #include "onepunch.h"
+#include "preprocessor.h"
 
 namespace onepunch {
 
@@ -13,7 +15,8 @@ namespace onepunch {
   public:
     Solver(std::vector<SegmentPtr>& code_segments,
            const std::vector<std::pair<REG, int>>& must_control_list,
-           const std::list<RegisterPtr>& reg_list, unsigned long search_level);
+           const std::list<RegisterPtr>& reg_list, unsigned long search_level,
+           const Preprocessor& preprocessor);
 
     bool Dfs(std::list<RegisterPtr>& output_register,
              std::vector<std::pair<SegmentPtr, unsigned>>& output_segments);
@@ -23,6 +26,8 @@ namespace onepunch {
     const std::vector<std::pair<REG, int>>& must_control_list_;
     const std::list<RegisterPtr>& reg_list_;
     unsigned long search_level_;
+    const Preprocessor& preprocessor_;
+    std::set<unsigned long> visited_;
   };
 
 }  // namespace onepunch

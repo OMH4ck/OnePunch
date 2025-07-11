@@ -26,7 +26,7 @@ std::string replace_memid(std::string str) {
 }
 
 TEST_CASE("Find and Minimize Solution Test") {
-    g_visited.clear();
+    
     std::srand(0);
     auto input_regs = ParseInputRegs({"r8"});
     auto must_control_list = ParseMustControlRegs({"rdi:1"});

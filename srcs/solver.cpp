@@ -5,28 +5,28 @@
 
 namespace onepunch {
 
-  set<unsigned long> g_visited;
-
   Solver::Solver(std::vector<SegmentPtr>& code_segments,
                  const std::vector<std::pair<REG, int>>& must_control_list,
-                 const std::list<RegisterPtr>& reg_list, unsigned long search_level)
+                 const std::list<RegisterPtr>& reg_list, unsigned long search_level,
+                 const Preprocessor& preprocessor)
       : code_segments_(code_segments),
         must_control_list_(must_control_list),
         reg_list_(reg_list),
-        search_level_(search_level) {}
+        search_level_(search_level),
+        preprocessor_(preprocessor) {}
 
   bool Solver::Dfs(std::list<RegisterPtr>& output_register,
                    std::vector<std::pair<SegmentPtr, unsigned>>& output_segments) {
     auto tmp_h = hash_reg_list(reg_list_);
     if (search_level_ == 1) {
-      if (g_visited.find(tmp_h) != g_visited.end()) {
+      if (visited_.find(tmp_h) != visited_.end()) {
         return false;
       }
-      g_visited.insert(tmp_h);
+      visited_.insert(tmp_h);
     }
 
     for (auto segment : code_segments_) {
-      if (search_level_ <= 2 && hash_match(Preprocessor::test_[segment], tmp_h) == false) continue;
+      if (search_level_ <= 2 && hash_match(preprocessor_.test_.at(segment), tmp_h) == false) continue;
 
       segment->useful_inst_index_ = 0;
       unsigned start_index = remove_useless_instructions(segment, reg_list_);
@@ -51,7 +51,8 @@ namespace onepunch {
       if (tmp_reg_list.size() > reg_list_.size()) {
         output_segments.push_back(make_pair(segment, start_index));
 
-        Solver solver(code_segments_, must_control_list_, tmp_reg_list, search_level_);
+        Solver solver(code_segments_, must_control_list_, tmp_reg_list, search_level_, preprocessor_);
+        solver.visited_ = this->visited_;
         bool flag_dfs = solver.Dfs(output_register, output_segments);
 
         if (flag_dfs) {
