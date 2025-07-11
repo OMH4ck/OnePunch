@@ -83,7 +83,6 @@ unsigned long compute_constraint(const SegmentPtr segment) {
 void Preprocessor::process(const vector<SegmentPtr> &segments) {
   for (const auto &i : segments) {
     auto res = compute_constraint(i);
-    // cout << std::hex << res << endl;
     test_[i] = res;
   }
 }
@@ -1003,78 +1002,7 @@ bool execute_instructions(const SegmentPtr instructions, list<RegisterPtr> &reg_
   return true;
 }
 
-set<unsigned long> g_visited;
 
-bool dfs(vector<SegmentPtr> &code_segments, const vector<pair<REG, int>> &must_control_list,
-         const list<RegisterPtr> &reg_list, list<RegisterPtr> &output_register,
-         vector<pair<SegmentPtr, unsigned>> &output_segments, unsigned long search_level) {
-  // If the same reg list (regardless of memory) has been explored, skip
-  auto tmp_h = hash_reg_list(reg_list);
-  if (search_level == 1) {
-    if (g_visited.find(tmp_h) != g_visited.end()) {
-      return false;
-    }
-    g_visited.insert(tmp_h);
-  }
-
-  auto save_rsp_usable = is_rsp_usable();
-  auto save_rbp_usable = is_rbp_usable();
-
-  for (auto segment : code_segments) {
-    if (search_level <= 2 && hash_match(Preprocessor::test_[segment], tmp_h) == false) continue;
-
-    segment->useful_inst_index_ = 0;
-    unsigned start_index = remove_useless_instructions(segment, reg_list);
-    if (segment->inst_list_.size() - segment->useful_inst_index_ < 2) {
-      continue;
-    }
-    if (search_level <= 2 && hash_match(compute_constraint(segment), tmp_h) == false) continue;
-    auto tmp_reg_list = copy_reg_list(reg_list);
-
-    set_rsp_usable(save_rsp_usable);
-    set_rbp_usable(save_rbp_usable);
-
-    if (execute_instructions(segment, tmp_reg_list, false) == false) {
-      if (0) {
-        cout << "Segment: " << endl;
-        segment->print_inst();
-        cout << "Register: " << endl;
-        for (auto i : reg_list) {
-          i->print();
-        }
-      }
-      delete_reg_list(tmp_reg_list);
-      continue;
-    }
-
-    assert(tmp_reg_list.size() < 17);
-
-    /*
-    check solution before check size. This might increase a little overhead but can catch more
-    solutions.
-    */
-    if (is_solution(must_control_list, tmp_reg_list)) {
-      output_segments.push_back(make_pair(segment, start_index));
-      output_register = move(tmp_reg_list);
-      return true;
-    }
-
-    if (tmp_reg_list.size() > reg_list.size()) {
-      output_segments.push_back(make_pair(segment, start_index));
-
-      bool flag_dfs = dfs(code_segments, must_control_list, tmp_reg_list, output_register,
-                          output_segments, search_level);
-
-      if (flag_dfs) {
-        delete_reg_list(tmp_reg_list);
-        return true;
-      }
-      output_segments.pop_back();
-    }
-    delete_reg_list(tmp_reg_list);
-  }
-  return false;
-}
 
 bool is_independent(REG reg, const list<RegisterPtr> &reg_list) {
   if (is_alias(reg, reg_list)) return false;
@@ -1336,11 +1264,15 @@ void match_and_print(vector<shared_ptr<Memory>> mem_list,
   }
 }
 
+#include "solver.h"
+
+set<unsigned long> g_visited;
+
 // New functions
 Solution OnePunch::find_solution(vector<SegmentPtr> &code_segments) {
   Solution sol;
-  sol.found = dfs(code_segments, must_control_list_, input_regs_, sol.output_reg_list,
-                  sol.output_segments, search_level_);
+  onepunch::Solver solver(code_segments, must_control_list_, input_regs_, search_level_);
+  sol.found = solver.Dfs(sol.output_reg_list, sol.output_segments);
   return sol;
 }
 

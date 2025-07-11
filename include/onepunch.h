@@ -5,6 +5,8 @@
 
 #include "asmutils.h"
 
+extern set<unsigned long> g_visited;
+
 using std::list;
 using std::map;
 using std::pair;
@@ -154,9 +156,8 @@ bool is_independent(REG reg, const list<RegisterPtr> &reg_list);
 bool is_solution(const vector<pair<REG, int>> &must_control_list,
                  const list<RegisterPtr> &reg_list);
 
-bool dfs(vector<SegmentPtr> &code_segments, const vector<pair<REG, int>> &must_control_list,
-         const list<RegisterPtr> &reg_list, list<RegisterPtr> &output_register,
-         vector<pair<SegmentPtr, unsigned>> &output_segments, unsigned long search_level = 1);
+unsigned long compute_constraint(const SegmentPtr segment);
+bool hash_match(unsigned long needed, unsigned long src);
 
 // chain, seems useless
 
