@@ -15,76 +15,13 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-enum VALUETYPE {
-  kCallValue = 0,
-  kMemValue,
-  kCallRegValue,
-  kImmValue,
-  kOtherValue,
-};
-
-class Register;
-using RegisterPtr = std::shared_ptr<Register>;
+#include "register.h"
 
 struct Solution {
   bool found = false;
   list<RegisterPtr> output_reg_list;
   vector<pair<SegmentPtr, unsigned>> output_segments;
   list<RegisterPtr> minimized_reg_list;
-};
-
-class Value {
-public:
-  VALUETYPE type_;
-  long value_;
-
-  Value(VALUETYPE type, long value) : type_(type), value_(value) {}
-  Value() {}
-  string to_string();
-};
-
-class Memory {
-public:
-  unsigned ref_count_ = 0;
-  unsigned mem_id_;
-  list<pair<long, long>> range_;
-  map<long, Value> content_;
-  string input_src_;
-  long input_offset_ = 0;
-  bool input_action_ = 0;
-
-  Memory();
-  ~Memory();
-  string get_input_relation() const;
-  void set_input_relation(const RegisterPtr reg, long offset, bool action);
-  void increase_ref_count();
-  void decrease_ref_count();
-  bool contain_range(const pair<long, long> &range);
-  bool remove_range(const pair<long, long> &range);
-  void set_content(long offset, const Value &val, OPERATION_LENGTH len);
-  string to_string();
-};
-
-class Register {
-public:
-  REG name_ = REG_NONE;
-  shared_ptr<Memory> mem_ = nullptr;
-  long base_offset_ = 0;
-  string input_src_;
-  long input_offset_ = 0;
-  bool input_action_ = 0;
-
-  Register(RegisterPtr reg);
-  Register(bool alloc_mem = true);
-  string to_string();
-  void print();
-  string get_input_relation() const;
-  void set_input_relation(const RegisterPtr reg, long offset, bool action);
-
-  void alias(const RegisterPtr reg, bool copy_mem = true);
-  bool contain_range(const pair<long, long> &range);
-  bool remove_range(const pair<long, long> &range);
-  void set_content(long offset, const Value &val, OPERATION_LENGTH len = kQWORD);
 };
 
 class Preprocessor {
