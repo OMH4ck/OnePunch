@@ -1133,6 +1133,7 @@ void match_and_print(vector<shared_ptr<Memory>> mem_list,
   }
 }
 
+#include "minimizer.h"
 #include "solver.h"
 
 set<unsigned long> g_visited;
@@ -1144,8 +1145,6 @@ Solution OnePunch::find_solution(vector<SegmentPtr> &code_segments) {
   sol.found = solver.Dfs(sol.output_reg_list, sol.output_segments);
   return sol;
 }
-
-#include "minimizer.h"
 
 void OnePunch::minimize_solution(Solution &solution) {
   onepunch::Minimizer minimizer(solution.minimized_reg_list, solution.output_segments, input_regs_,

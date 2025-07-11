@@ -8,7 +8,6 @@
 #include <regex>
 #include "asmutils.h"
 
-extern std::set<unsigned long> g_visited;
 extern bool RECORD_MEM;
 
 // Function to remove all whitespace from a string

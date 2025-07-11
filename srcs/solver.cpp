@@ -5,6 +5,8 @@
 
 namespace onepunch {
 
+set<unsigned long> g_visited;
+
 Solver::Solver(std::vector<SegmentPtr>& code_segments,
                const std::vector<std::pair<REG, int>>& must_control_list,
                const std::list<RegisterPtr>& reg_list,

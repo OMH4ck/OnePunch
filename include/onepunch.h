@@ -5,7 +5,9 @@
 
 #include "asmutils.h"
 
-extern set<unsigned long> g_visited;
+#include <set>
+
+extern std::set<unsigned long> g_visited;
 
 using std::list;
 using std::map;
