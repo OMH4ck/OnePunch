@@ -9,21 +9,21 @@
 
 namespace onepunch {
 
-class Solver {
- public:
-  Solver(std::vector<SegmentPtr>& code_segments,
-         const std::vector<std::pair<REG, int>>& must_control_list,
-         const std::list<RegisterPtr>& reg_list, unsigned long search_level);
+  class Solver {
+  public:
+    Solver(std::vector<SegmentPtr>& code_segments,
+           const std::vector<std::pair<REG, int>>& must_control_list,
+           const std::list<RegisterPtr>& reg_list, unsigned long search_level);
 
-  bool Dfs(std::list<RegisterPtr>& output_register,
-           std::vector<std::pair<SegmentPtr, unsigned>>& output_segments);
+    bool Dfs(std::list<RegisterPtr>& output_register,
+             std::vector<std::pair<SegmentPtr, unsigned>>& output_segments);
 
- private:
-  std::vector<SegmentPtr>& code_segments_;
-  const std::vector<std::pair<REG, int>>& must_control_list_;
-  const std::list<RegisterPtr>& reg_list_;
-  unsigned long search_level_;
-};
+  private:
+    std::vector<SegmentPtr>& code_segments_;
+    const std::vector<std::pair<REG, int>>& must_control_list_;
+    const std::list<RegisterPtr>& reg_list_;
+    unsigned long search_level_;
+  };
 
 }  // namespace onepunch
 

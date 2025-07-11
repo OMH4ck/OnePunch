@@ -1,4 +1,7 @@
 #include "onepunch.h"
+#include "minimizer.h"
+#include "solver.h"
+
 
 #include <algorithm>
 
@@ -1002,8 +1005,6 @@ bool execute_instructions(const SegmentPtr instructions, list<RegisterPtr> &reg_
   return true;
 }
 
-
-
 bool is_independent(REG reg, const list<RegisterPtr> &reg_list) {
   if (is_alias(reg, reg_list)) return false;
   RegisterPtr regptr = get_reg_by_idx(reg, reg_list);
@@ -1057,8 +1058,6 @@ void record_memory(const vector<REG> &reg_name_list,
     iter.reset();
   }
 }
-
-
 
 void delete_reg_list(list<RegisterPtr> &reg_list) {
   for (auto reg : reg_list) {
@@ -1133,9 +1132,6 @@ void match_and_print(vector<shared_ptr<Memory>> mem_list,
   }
 }
 
-#include "minimizer.h"
-#include "solver.h"
-
 set<unsigned long> g_visited;
 
 // New functions
@@ -1205,7 +1201,7 @@ void OnePunch::Run() {
     }
     cout << "------" << endl;
   }
-  //cout << "Minimization time: " << get_cur_time() - t_start << endl;
+  // cout << "Minimization time: " << get_cur_time() - t_start << endl;
 
   record_memory_stage(solution);
 }

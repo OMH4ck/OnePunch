@@ -2,10 +2,9 @@
 #define __HEADER_ONEPUNCH__
 
 #include <optional>
+#include <set>
 
 #include "asmutils.h"
-
-#include <set>
 
 extern std::set<unsigned long> g_visited;
 
@@ -33,7 +32,6 @@ struct Solution {
   vector<pair<SegmentPtr, unsigned>> output_segments;
   list<RegisterPtr> minimized_reg_list;
 };
-
 
 class Value {
 public:

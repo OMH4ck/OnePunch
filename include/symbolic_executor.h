@@ -9,14 +9,13 @@
 
 namespace onepunch {
 
-class SymbolicExecutor {
- public:
-  SymbolicExecutor() = default;
+  class SymbolicExecutor {
+  public:
+    SymbolicExecutor() = default;
 
-  bool ExecuteInstructions(const SegmentPtr instructions,
-                           std::list<RegisterPtr>& reg_list,
-                           bool record_flag);
-};
+    bool ExecuteInstructions(const SegmentPtr instructions, std::list<RegisterPtr>& reg_list,
+                             bool record_flag);
+  };
 
 }  // namespace onepunch
 

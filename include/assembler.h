@@ -10,13 +10,13 @@
 
 namespace onepunch {
 
-class Assembler {
- public:
-  Assembler() = default;
+  class Assembler {
+  public:
+    Assembler() = default;
 
-  std::vector<InstrPtr> GetDisasmCode(const std::string& filename);
-  std::vector<SegmentPtr> GetCallSegment(std::vector<InstrPtr>& insts);
-};
+    std::vector<InstrPtr> GetDisasmCode(const std::string& filename);
+    std::vector<SegmentPtr> GetCallSegment(std::vector<InstrPtr>& insts);
+  };
 
 }  // namespace onepunch
 
