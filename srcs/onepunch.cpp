@@ -1058,138 +1058,7 @@ void record_memory(const vector<REG> &reg_name_list,
   }
 }
 
-bool minimize_segment(list<RegisterPtr> &sol_register,
-                      vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                      const list<RegisterPtr> &input_regs,
-                      const vector<pair<REG, int>> &must_control_list);
-bool minimize_instruction(list<RegisterPtr> &sol_register,
-                          vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                          const list<RegisterPtr> &input_regs,
-                          const vector<pair<REG, int>> &must_control_list);
-bool run_segment_list(vector<pair<SegmentPtr, unsigned>> &run_code, list<RegisterPtr> &registers);
-void minimize_segment_nb(list<RegisterPtr> &sol_register,
-                         vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                         const list<RegisterPtr> &input_regs,
-                         const vector<pair<REG, int>> &must_control_list, int idx,
-                         vector<pair<SegmentPtr, unsigned>> &run_code,
-                         vector<pair<SegmentPtr, unsigned>> &orig_segements);
 
-void minimize_result(list<RegisterPtr> &sol_register,
-                     vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                     const list<RegisterPtr> &input_regs,
-                     const vector<pair<REG, int>> &must_control_list) {
-  while (true) {
-    bool segment_minimize, deep_minimize;
-    segment_minimize = minimize_segment(sol_register, sol_segements, input_regs, must_control_list);
-    /*       cout << segment_minimize << " after segment_minimize:" << endl;
-           for(auto &s: sol_segements) {
-               auto seg = s.first;
-               auto idx = s.second;
-               cout << endl;
-               for (auto i=idx; i < seg->inst_list_.size(); i++)
-                   cout << seg->inst_list_[i]->original_inst_ << endl;
-           }
-   */
-    deep_minimize
-        = minimize_instruction(sol_register, sol_segements, input_regs, must_control_list);
-    /*        cout << "\n\n" << deep_minimize << " after instruction_minimize:" << endl;
-            for(auto &s: sol_segements) {
-                   auto seg = s.first;
-                   auto idx = s.second;
-                   cout << endl;
-                   for (auto i=idx; i < seg->inst_list_.size(); i++)
-                       cout << seg->inst_list_[i]->original_inst_ << endl;
-            }
-      */
-    if (!segment_minimize && !deep_minimize) break;
-  }
-
-  return;
-}
-
-void minimize_segment_nb(list<RegisterPtr> &sol_register,
-                         vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                         const list<RegisterPtr> &input_regs,
-                         const vector<pair<REG, int>> &must_control_list, int idx,
-                         vector<pair<SegmentPtr, unsigned>> &run_code,
-                         vector<pair<SegmentPtr, unsigned>> &orig_segements) {
-  for (size_t i = idx; i < orig_segements.size(); i++) {
-    run_code.push_back(orig_segements[i]);
-    auto registers = copy_reg_list(input_regs);
-    if (run_segment_list(run_code, registers) == false) {
-      run_code.pop_back();
-      delete_reg_list(registers);
-      continue;
-    }
-    if (is_solution(must_control_list, registers)) {
-      if (sol_segements.size() > run_code.size()) {
-        sol_segements = run_code;
-        sol_register = registers;
-      }
-    }
-
-    minimize_segment_nb(sol_register, sol_segements, input_regs, must_control_list, i + 1, run_code,
-                        orig_segements);
-    run_code.pop_back();
-    delete_reg_list(registers);
-  }
-}
-
-bool minimize_segment(list<RegisterPtr> &sol_register,
-                      vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                      const list<RegisterPtr> &input_regs,
-                      const vector<pair<REG, int>> &must_control_list) {
-  auto solution_size = sol_segements.size();
-  vector<pair<SegmentPtr, unsigned>> tmp;
-  auto orig_segment = sol_segements;
-  vector<int> log;
-  minimize_segment_nb(sol_register, sol_segements, input_regs, must_control_list, 0, tmp,
-                      orig_segment);
-
-  return solution_size != sol_segements.size();
-}
-
-bool minimize_instruction(list<RegisterPtr> &sol_register,
-                          vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                          const list<RegisterPtr> &input_regs,
-                          const vector<pair<REG, int>> &must_control_list) {
-  bool is_optimized = false;
-  for (auto &segment_info : sol_segements) {
-    auto segment = segment_info.first;
-    auto segment_inst_index = segment_info.second;
-    auto max_inst_size = segment->inst_list_.size();
-    for (auto i = segment_inst_index + 1; i < max_inst_size; i++) {
-      segment_info.second = i;
-      auto registers = copy_reg_list(input_regs);
-      if (run_segment_list(sol_segements, registers) == false) {
-        delete_reg_list(registers);
-        continue;
-      }
-      if (is_solution(must_control_list, registers)) {
-        segment_inst_index = i;
-        delete_reg_list(registers);
-        sol_register = registers;
-        is_optimized = true;
-      } else {
-        delete_reg_list(registers);
-      }
-    }
-    segment_info.second = segment_inst_index;
-  }
-
-  return is_optimized;
-}
-
-bool run_segment_list(vector<pair<SegmentPtr, unsigned>> &run_code, list<RegisterPtr> &registers) {
-  for (auto &segment_info : run_code) {
-    auto segment = segment_info.first;
-    auto segment_inst_index = segment_info.second;
-    segment->useful_inst_index_ = segment_inst_index;
-    if (execute_instructions(segment, registers, false) == false) return false;
-  }
-
-  return true;
-}
 
 void delete_reg_list(list<RegisterPtr> &reg_list) {
   for (auto reg : reg_list) {
@@ -1276,9 +1145,12 @@ Solution OnePunch::find_solution(vector<SegmentPtr> &code_segments) {
   return sol;
 }
 
+#include "minimizer.h"
+
 void OnePunch::minimize_solution(Solution &solution) {
-  minimize_result(solution.minimized_reg_list, solution.output_segments, input_regs_,
-                  must_control_list_);
+  onepunch::Minimizer minimizer(solution.minimized_reg_list, solution.output_segments, input_regs_,
+                                must_control_list_);
+  minimizer.Minimize();
 }
 
 void OnePunch::record_memory_stage(Solution &solution) {

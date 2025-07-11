@@ -175,11 +175,6 @@ void record_memory(const vector<REG> &reg_name_list,
  * sol_segements(segments after minimizing) return true for successfully minimize.
  */
 
-void minimize_result(list<RegisterPtr> &sol_register,
-                     vector<pair<SegmentPtr, unsigned>> &sol_segements,
-                     const list<RegisterPtr> &input_regs,
-                     const vector<pair<REG, int>> &must_control_list);
-
 list<RegisterPtr> copy_reg_list(list<RegisterPtr> reg_list);
 void delete_reg_list(list<RegisterPtr> &reg_list);
 
