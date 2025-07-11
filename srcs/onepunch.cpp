@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "assembler.h"
+
 long MEM_INF = 0x10000000;
 
 // static const char *g_type_strings[] = {"CallValue", "MemValue", "CallRegValue", "OtherValue"};
@@ -1358,8 +1360,9 @@ void OnePunch::record_memory_stage(Solution &solution) {
 void OnePunch::Run() {
   std::srand(0);
   auto t_start = get_cur_time();
-  auto instruction_list = get_disasm_code(input_file_);
-  auto code_segments = get_call_segment(instruction_list);
+  onepunch::Assembler assembler;
+  auto instruction_list = assembler.GetDisasmCode(input_file_);
+  auto code_segments = assembler.GetCallSegment(instruction_list);
   std::sort(code_segments.begin(), code_segments.end(),
             [](const SegmentPtr &a, const SegmentPtr &b) -> bool {
               return a->to_string(false) < b->to_string(false);

@@ -266,14 +266,5 @@ REG get_reg_by_str(const string &str);
 string get_reg_str_by_reg(REG);
 
 string refine(string line);
-vector<InstrPtr> get_disasm_code(string filename);
-vector<SegmentPtr> get_call_segment(vector<InstrPtr> &insts);
-
-REG find_reg64(REG r);  // e.g., transfer eax to rax. return REG_NONE if cannot find
-bool is_reg64(REG r);
-bool is_reg64_operation(InstrPtr inst);
-
-unsigned long locate_next_inst_addr(unsigned long offset,
-                                    const vector<pair<SegmentPtr, unsigned>> &code_segments);
 OPERATION_LENGTH check_operation_length(const string &operand);
 #endif

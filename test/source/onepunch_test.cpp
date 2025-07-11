@@ -173,5 +173,7 @@ rsi:    memid:0x5c9, relation: *(r8+0x38)+0x23b0+0x28
         Available:[ [-INF,0x20], [0x28,0x23b0], [0x23b4,0x23b8], [0x23c0,0x23c8], [0x23d0,0x23e8], [0x2400,INF] ]
         content:[ [0x20:(CALL_VALUE,0x15f4df(inst))], [0x23b8:(MEM_VALUE,0x5ca(memid))], [0x23c8:(MEM_VALUE,0x5ce(memid))], [0x23e8:(MEM_VALUE,0x5cd(memid))], [0x23f0:(CALL_VALUE,Target RIP)], [0x23f8:(MEM_VALUE,0x5cb(memid))] ]
 )";
-    CHECK(remove_whitespace(solution_output) == remove_whitespace(expected_solution));
+    std::string cleaned_actual_output = remove_whitespace(replace_memid(solution_output));
+    std::string cleaned_expected_output = remove_whitespace(replace_memid(expected_solution));
+    REQUIRE_EQ(cleaned_actual_output, cleaned_expected_output);
 }

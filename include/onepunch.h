@@ -216,4 +216,8 @@ private:
 std::optional<std::list<RegisterPtr>> ParseInputRegs(std::vector<std::string> input_regs);
 std::optional<vector<pair<REG, int>>> ParseMustControlRegs(
     std::vector<std::string> must_control_list);
+
+REG find_reg64(REG r);
+unsigned long locate_next_inst_addr(unsigned long offset,
+                                    const vector<pair<SegmentPtr, unsigned>> &code_segments);
 #endif
