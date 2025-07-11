@@ -11,8 +11,6 @@ long MEM_INF = 0x10000000;
 
 // static const char *g_type_strings[] = {"CallValue", "MemValue", "CallRegValue", "OtherValue"};
 
-map<unsigned long, vector<SegmentPtr>> Preprocessor::result_;
-map<SegmentPtr, unsigned long> Preprocessor::test_;
 vector<shared_ptr<Memory>> MEM_LIST;
 bool RECORD_MEM = false;
 
@@ -81,13 +79,6 @@ unsigned long compute_constraint(const SegmentPtr segment) {
   */
   auto res = (input_hash << 32) | output_hash;
   return res;
-}
-
-void Preprocessor::process(const vector<SegmentPtr> &segments) {
-  for (const auto &i : segments) {
-    auto res = compute_constraint(i);
-    test_[i] = res;
-  }
 }
 
 bool opcode_dst_control(OPCODE opcode) {

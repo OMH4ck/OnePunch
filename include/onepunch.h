@@ -24,16 +24,7 @@ struct Solution {
   list<RegisterPtr> minimized_reg_list;
 };
 
-class Preprocessor {
-public:
-  static map<unsigned long, vector<SegmentPtr>> result_;
-  static map<SegmentPtr, unsigned long> test_;
-
-  // unsigned long compute_constraint(const Segment* segment);
-  static void process(const vector<SegmentPtr> &segments);
-
-  // vector<Segment*> sample(unsigned size);
-};
+#include "preprocessor.h"
 
 unsigned long compute_constraint(const SegmentPtr segment);
 unsigned long hash_reg_list(const set<REG> &reg_list);
