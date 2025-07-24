@@ -6,7 +6,7 @@ using namespace std;
 
 void Preprocessor::process(const vector<SegmentPtr>& segments) {
   for (const auto& i : segments) {
-    auto res = compute_constraint(i);
+    auto res = ConstraintAnalyzer::compute_constraint(i);
     test_[i] = res;
   }
 }

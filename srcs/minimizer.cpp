@@ -37,13 +37,13 @@ namespace onepunch {
                                     std::vector<std::pair<SegmentPtr, unsigned>>& orig_segements) {
     for (size_t i = idx; i < orig_segements.size(); i++) {
       run_code.push_back(orig_segements[i]);
-      auto registers = copy_reg_list(input_regs_);
+      auto registers = SymbolicExecutor::copy_reg_list(input_regs_);
       if (RunSegmentList(run_code, registers) == false) {
         run_code.pop_back();
-        delete_reg_list(registers);
+        SymbolicExecutor::delete_reg_list(registers);
         continue;
       }
-      if (is_solution(must_control_list_, registers)) {
+      if (SymbolicExecutor::is_solution(must_control_list_, registers)) {
         if (sol_segements_.size() > run_code.size()) {
           sol_segements_ = run_code;
           sol_register_ = registers;
@@ -52,7 +52,7 @@ namespace onepunch {
 
       MinimizeSegmentNb(i + 1, run_code, orig_segements);
       run_code.pop_back();
-      delete_reg_list(registers);
+      SymbolicExecutor::delete_reg_list(registers);
     }
   }
 
@@ -64,18 +64,18 @@ namespace onepunch {
       auto max_inst_size = segment->inst_list_.size();
       for (auto i = segment_inst_index + 1; i < max_inst_size; i++) {
         segment_info.second = i;
-        auto registers = copy_reg_list(input_regs_);
+        auto registers = SymbolicExecutor::copy_reg_list(input_regs_);
         if (RunSegmentList(sol_segements_, registers) == false) {
-          delete_reg_list(registers);
+          SymbolicExecutor::delete_reg_list(registers);
           continue;
         }
-        if (is_solution(must_control_list_, registers)) {
+        if (SymbolicExecutor::is_solution(must_control_list_, registers)) {
           segment_inst_index = i;
-          delete_reg_list(registers);
+          SymbolicExecutor::delete_reg_list(registers);
           sol_register_ = registers;
           is_optimized = true;
         } else {
-          delete_reg_list(registers);
+          SymbolicExecutor::delete_reg_list(registers);
         }
       }
       segment_info.second = segment_inst_index;

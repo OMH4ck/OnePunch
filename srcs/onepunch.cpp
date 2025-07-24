@@ -15,47 +15,22 @@ long MEM_INF = 0x10000000;
 vector<shared_ptr<Memory>> MEM_LIST;
 bool RECORD_MEM = false;
 
-void collect_input_output_regs(const SegmentPtr segment, set<REG> &input_regs,
-                               set<REG> &output_regs);
-
-
-
-unsigned long compute_constraint(const SegmentPtr segment) {
+// ConstraintAnalyzer implementation
+unsigned long ConstraintAnalyzer::compute_constraint(const SegmentPtr segment) {
   set<REG> input_regs, output_regs;
   collect_input_output_regs(segment, input_regs, output_regs);
-  /*
-  cout << "----" << endl;
-  for(auto i: segment->inst_list_){
-      cout << i->original_inst_ << endl;
-  }
-  cout << "Input: " << endl;
-  for(auto r: input_regs){
-      cout << get_reg_str_by_reg(r) << endl;
-  }
-  cout << "Output: " << endl;
-  for(auto r: output_regs){
-      cout << get_reg_str_by_reg(r) << endl;
-  }
-  cout <<"----" << endl;
-  char a;
-  */
   auto input_hash = hash_reg_list(input_regs);
   auto output_hash = hash_reg_list(output_regs);
-  /*
-  cout << std:: hex << "Input Hash: "<<  input_hash << endl;
-  cout << std:: hex << "Output Hash: "<<  output_hash << endl;
-  cout << "Total: " << res << endl;
-  */
   auto res = (input_hash << 32) | output_hash;
   return res;
 }
 
-bool opcode_dst_control(OPCODE opcode) {
+bool ConstraintAnalyzer::opcode_dst_control(OPCODE opcode) {
   static set<OPCODE> m_opcode = {OP_MOV, OP_LEA, OP_POP};
   return m_opcode.find(opcode) != m_opcode.end();
 }
 
-bool hash_match(unsigned long needed, unsigned long src) {
+bool ConstraintAnalyzer::hash_match(unsigned long needed, unsigned long src) {
   unsigned int needed_input = needed >> 32;
   unsigned int needed_output = needed & 0xFFFFFFFF;
   if (((src & needed_output) ^ needed_output) == 0) {
@@ -67,15 +42,8 @@ bool hash_match(unsigned long needed, unsigned long src) {
   return true;
 }
 
-/*
-bool opcode_src_control(OPCODE opcode){
-    static set<OPCODE> m_opcode = {OP_MOV, OP_LEA, OP_POP};
-    return m_opcode.find(opcode) != m_opcode.end();
-}
-*/
-
-void collect_input_output_regs(const SegmentPtr segment, set<REG> &input_regs,
-                               set<REG> &output_regs) {
+void ConstraintAnalyzer::collect_input_output_regs(const SegmentPtr segment, set<REG> &input_regs,
+                                                   set<REG> &output_regs) {
   for (auto idx = segment->useful_inst_index_; idx != segment->inst_list_.size(); ++idx) {
     const auto &inst = segment->inst_list_[idx];
     const auto &op_src = inst->op_src_;
@@ -104,7 +72,7 @@ void collect_input_output_regs(const SegmentPtr segment, set<REG> &input_regs,
   }
 }
 
-unsigned long hash_reg_list(const set<REG> &reg_list) {
+unsigned long ConstraintAnalyzer::hash_reg_list(const set<REG> &reg_list) {
   unsigned long res = 0;
   for (auto i : reg_list) {
     res |= (1 << ((unsigned long)i));
@@ -112,7 +80,7 @@ unsigned long hash_reg_list(const set<REG> &reg_list) {
   return res;
 }
 
-unsigned long hash_reg_list(const list<RegisterPtr> &reg_list) {
+unsigned long ConstraintAnalyzer::hash_reg_list(const list<RegisterPtr> &reg_list) {
   unsigned long res = 0;
   for (auto i : reg_list) {
     res |= 1 << ((unsigned long)(i->name_));
@@ -120,172 +88,12 @@ unsigned long hash_reg_list(const list<RegisterPtr> &reg_list) {
   return res;
 }
 
-bool is_in_input(REG reg, const list<RegisterPtr> &reg_list) {
-  for (auto &iter : reg_list) {
-    if (iter->name_ == reg) return true;
-  }
-  return false;
-}
-
-unsigned remove_useless_instructions(SegmentPtr inst_list, const list<RegisterPtr> &reg_list) {
-  unsigned int index = inst_list->useful_inst_index_;
-  auto &insts = inst_list->inst_list_;
-  unsigned int siz = insts.size();
-
-  while (index < siz) {
-    auto inst = insts[index];
-    if (inst->operation_length_ != kQWORD || inst->opcode_ == OP_PUSH) {
-      index++;
-      continue;
-    }
-
-    if (inst->operand_num_ == 2) {
-      assert(inst->op_src_);
-      assert(inst->op_dst_);
-      if (inst->op_src_->reg_num_ == 0) {
-        index++;
-        continue;
-      }
-      if (inst->op_dst_->is_dereference_) {
-        if (inst->op_dst_->reg_num_ != 1) {
-          index++;
-          continue;
-        }
-        if (is_in_input(inst->op_dst_->get_reg_op(), reg_list) == false) {
-          index++;
-          continue;
-        }
-      }
-      if (inst->op_src_->reg_num_ == 1 && inst->op_src_->reg_list_[0].second == 1) {
-        if (is_in_input(inst->op_src_->reg_list_[0].first, reg_list)) {
-          break;
-        }
-      }
-    } else {
-      // cout << inst->original_inst_ << endl;
-      assert(inst->op_dst_);
-      if (inst->op_dst_->reg_num_ == 0) {
-        index++;
-        continue;
-      }
-      if (inst->op_dst_->reg_num_ == 1 && inst->op_dst_->reg_list_[0].second == 1) {
-        if (is_in_input(inst->op_dst_->reg_list_[0].first, reg_list)) {
-          break;
-        }
-      }
-    }
-    index++;
-  }
-  inst_list->useful_inst_index_ = index;
-  return index;
-}
-
-RegisterPtr get_reg_by_idx(REG reg, const list<RegisterPtr> &reg_list) {
-  for (auto &iter : reg_list) {
-    if (iter->name_ == reg) return iter;
-  }
-  return nullptr;
-}
-
-void remove_reg(RegisterPtr reg_to_remove, list<RegisterPtr> &reg_list) {
-  reg_list.remove(reg_to_remove);
-}
-
-void remove_reg_by_idx(REG reg, list<RegisterPtr> &reg_list) {
-  for (auto iter = reg_list.begin(); iter != reg_list.end(); iter++) {
-    assert((*iter) != nullptr);
-    if ((*iter)->name_ == reg) {
-      reg_list.erase(iter);
-      return;
-    }
-  }
-  // reg_list.remove_if([](Register* n){return n->name_ == reg;});
-}
-
-void remove_reg_and_alias(RegisterPtr reg_to_remove, list<RegisterPtr> &reg_list) {
-  shared_ptr<Memory> tmp = reg_to_remove->mem_;
-  for (auto &iter : reg_list) {
-    if (iter->mem_ == tmp) {
-      reg_list.remove(iter);
-      return;
-    }
-  }
-  // reg_list.remove_if([](Register* n){return n->mem_ == tmp;});
-}
-
-RegisterPtr make_alias(REG alias_reg_name, RegisterPtr reg, bool copy_mem) {
-  auto new_reg = std::make_shared<Register>(false);
-  new_reg->name_ = alias_reg_name;
-  new_reg->alias(reg, copy_mem);
-  return new_reg;
-}
-
-RegisterPtr get_reg_by_relation(const string &relation, const list<RegisterPtr> &reg_list) {
-  // cout << "offset=" << offset << ", inst:" << inst_str << endl;
-  for (auto reg : reg_list) {
-    if (reg->get_input_relation() == relation) {
-      return reg;
-    }
-  }
-
-  return nullptr;
-}
-
-list<RegisterPtr> prepare_reg_list(const vector<REG> &reg_name_list) {
-  list<RegisterPtr> List;
-  for (auto &inter : reg_name_list) {
-    RegisterPtr reg = std::make_shared<Register>();
-    reg->name_ = inter;
-    // reg->mem_ = make_shared<Memory>();
-    // if(RECORD_MEM)
-    // MEM_LIST.push_back(reg->mem_);
-    // reg->mem_->range_.push_back(make_pair(-MEM_INF, MEM_INF));
-    reg->input_src_ = get_reg_str_by_reg(inter);
-    reg->input_action_ = false;
-    reg->mem_->set_input_relation(reg, 0, false);
-    List.push_back(reg);
-  }
-  return List;
-}
-
-bool is_alias(REG reg, const list<RegisterPtr> &reg_list) {
-  auto reg_ptr = get_reg_by_idx(reg, reg_list);
-  if (reg_ptr == nullptr) return false;
-  if (reg_ptr->mem_->ref_count_ > 1) return true;
-  return false;
-}
-
-bool is_independent(REG reg, const list<RegisterPtr> &reg_list) {
-  if (is_alias(reg, reg_list)) return false;
-  RegisterPtr regptr = get_reg_by_idx(reg, reg_list);
-  if (regptr == nullptr) return false;
-  if (regptr->mem_->range_.size() == 1) return true;
-  return false;
-}
-
-bool is_solution(const vector<pair<REG, int>> &must_control_list,
-                 const list<RegisterPtr> &reg_list) {
-  bool flag = true;
-
-  for (auto &reg : must_control_list) {
-    if (is_in_input(reg.first, reg_list) == false) {
-      flag = false;
-      break;
-    }
-    // cout << "Reg: " << get_reg_str_by_reg(reg.first) << endl;
-    if (reg.second == 1 && is_independent(reg.first, reg_list) == false) {
-      flag = false;
-      break;
-    }
-  }
-  return flag;
-}
 
 void record_memory(const vector<REG> &reg_name_list,
                    vector<pair<SegmentPtr, unsigned>> &code_segments,
                    const vector<pair<REG, int>> &must_control_list) {
   RECORD_MEM = true;
-  list<RegisterPtr> reg_list = prepare_reg_list(reg_name_list);
+  list<RegisterPtr> reg_list = onepunch::SymbolicExecutor::prepare_reg_list(reg_name_list);
   for (auto &iter : code_segments) {
     iter.first->useful_inst_index_ = iter.second;
     onepunch::SymbolicExecutor executor;
@@ -308,27 +116,6 @@ void record_memory(const vector<REG> &reg_name_list,
   for (auto &iter : MEM_LIST) {
     iter.reset();
   }
-}
-
-void delete_reg_list(list<RegisterPtr> &reg_list) {
-  for (auto reg : reg_list) {
-  }
-}
-
-list<RegisterPtr> copy_reg_list(list<RegisterPtr> reg_list) {
-  list<RegisterPtr> result;
-
-  for (auto reg : reg_list) {
-    auto new_reg = std::make_shared<Register>(reg);
-    for (auto reg2 : result) {
-      if (reg2->mem_->mem_id_ == new_reg->mem_->mem_id_) {
-        new_reg->mem_ = reg2->mem_;
-        break;
-      }
-    }
-    result.push_back(new_reg);
-  }
-  return result;
 }
 
 RegisterPtr get_reg(REG reg, const list<RegisterPtr> &reg_list) {
@@ -378,6 +165,7 @@ void match_and_print(vector<shared_ptr<Memory>> mem_list,
             is_found = true;
           }
         }
+        (void)is_found; // Suppress unused variable warning in release builds
       }
     }
   }
@@ -477,7 +265,7 @@ std::optional<std::list<RegisterPtr>> ParseInputRegs(std::vector<std::string> in
     control_reg_for_prepare.push_back(reg);
   }
 
-  auto reg_list = prepare_reg_list(control_reg_for_prepare);
+  auto reg_list = onepunch::SymbolicExecutor::prepare_reg_list(control_reg_for_prepare);
   for (auto r : reg_list) {
     for (auto range : control_reg_remove_ranges[r->name_]) {
       r->remove_range(range);

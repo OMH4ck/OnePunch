@@ -17,7 +17,7 @@ namespace onepunch {
 
   bool Solver::Dfs(std::list<RegisterPtr>& output_register,
                    std::vector<std::pair<SegmentPtr, unsigned>>& output_segments) {
-    auto tmp_h = hash_reg_list(reg_list_);
+    auto tmp_h = ConstraintAnalyzer::hash_reg_list(reg_list_);
     if (search_level_ == 1) {
       if (visited_.find(tmp_h) != visited_.end()) {
         return false;
@@ -26,23 +26,23 @@ namespace onepunch {
     }
 
     for (auto segment : code_segments_) {
-      if (search_level_ <= 2 && hash_match(preprocessor_.test_.at(segment), tmp_h) == false) continue;
+      if (search_level_ <= 2 && ConstraintAnalyzer::hash_match(preprocessor_.test_.at(segment), tmp_h) == false) continue;
 
       segment->useful_inst_index_ = 0;
-      unsigned start_index = remove_useless_instructions(segment, reg_list_);
+      unsigned start_index = SymbolicExecutor::remove_useless_instructions(segment, reg_list_);
       if (segment->inst_list_.size() - segment->useful_inst_index_ < 2) {
         continue;
       }
-      if (search_level_ <= 2 && hash_match(compute_constraint(segment), tmp_h) == false) continue;
-      auto tmp_reg_list = copy_reg_list(reg_list_);
+      if (search_level_ <= 2 && ConstraintAnalyzer::hash_match(ConstraintAnalyzer::compute_constraint(segment), tmp_h) == false) continue;
+      auto tmp_reg_list = SymbolicExecutor::copy_reg_list(reg_list_);
 
       SymbolicExecutor executor;
       if (executor.ExecuteInstructions(segment, tmp_reg_list, false) == false) {
-        delete_reg_list(tmp_reg_list);
+        SymbolicExecutor::delete_reg_list(tmp_reg_list);
         continue;
       }
 
-      if (is_solution(must_control_list_, tmp_reg_list)) {
+      if (SymbolicExecutor::is_solution(must_control_list_, tmp_reg_list)) {
         output_segments.push_back(make_pair(segment, start_index));
         output_register = move(tmp_reg_list);
         return true;
@@ -56,12 +56,12 @@ namespace onepunch {
         bool flag_dfs = solver.Dfs(output_register, output_segments);
 
         if (flag_dfs) {
-          delete_reg_list(tmp_reg_list);
+          SymbolicExecutor::delete_reg_list(tmp_reg_list);
           return true;
         }
         output_segments.pop_back();
       }
-      delete_reg_list(tmp_reg_list);
+      SymbolicExecutor::delete_reg_list(tmp_reg_list);
     }
     return false;
   }

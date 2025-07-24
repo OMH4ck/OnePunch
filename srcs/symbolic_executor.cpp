@@ -35,8 +35,9 @@ static inline void set_stack_frame_reg(REG r, bool flag) {
 }
 
 bool SymbolicExecutor::mov_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
-  auto op_dst = inst->op_dst_;
-  auto op_src = inst->op_src_;
+  assert(inst->op_dst_.has_value() && inst->op_src_.has_value());
+  auto op_dst = &inst->op_dst_.value();
+  auto op_src = &inst->op_src_.value();
 
   if (inst->operation_length_ != kQWORD) {
     if (op_dst->is_dereference_) {
@@ -142,8 +143,9 @@ bool SymbolicExecutor::mov_handler(const InstrPtr inst, list<RegisterPtr> &reg_l
 }
 
 bool SymbolicExecutor::lea_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
-  auto op_dst = inst->op_dst_;
-  auto op_src = inst->op_src_;
+  assert(inst->op_dst_.has_value() && inst->op_src_.has_value());
+  auto op_dst = &inst->op_dst_.value();
+  auto op_src = &inst->op_src_.value();
 
   assert(op_dst->reg_num_ == 1);
   auto reg_dst = op_dst->reg_list_[0].first;
@@ -171,7 +173,8 @@ bool SymbolicExecutor::lea_handler(const InstrPtr inst, list<RegisterPtr> &reg_l
 }
 
 bool SymbolicExecutor::pop_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
-  auto op_dst = inst->op_dst_;
+  assert(inst->op_dst_.has_value());
+  auto op_dst = &inst->op_dst_.value();
   assert(op_dst->reg_num_ == 1);
   auto reg_dst = op_dst->reg_list_[0].first;
 
@@ -207,8 +210,9 @@ bool SymbolicExecutor::pop_handler(const InstrPtr inst, list<RegisterPtr> &reg_l
 }
 
 bool SymbolicExecutor::add_sub_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
-  auto op_dst = inst->op_dst_;
-  auto op_src = inst->op_src_;
+  assert(inst->op_dst_.has_value() && inst->op_src_.has_value());
+  auto op_dst = &inst->op_dst_.value();
+  auto op_src = &inst->op_src_.value();
 
   if (op_dst->is_dereference_ == false) {
     assert(op_dst->reg_num_ == 1);
@@ -275,7 +279,8 @@ bool SymbolicExecutor::push_handler(const InstrPtr inst, list<RegisterPtr> &reg_
 }
 
 bool SymbolicExecutor::bitwise_handler(const InstrPtr inst, list<RegisterPtr> &reg_list) {
-  auto op_dst = inst->op_dst_;
+  assert(inst->op_dst_.has_value());
+  auto op_dst = &inst->op_dst_.value();
 
   if (op_dst->is_dereference_) {
     if (op_dst->reg_num_ != 1) return false;
@@ -296,9 +301,9 @@ bool SymbolicExecutor::bitwise_handler(const InstrPtr inst, list<RegisterPtr> &r
 }
 
 bool SymbolicExecutor::xchg_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
-  auto op_src = inst->op_src_;
-  auto op_dst = inst->op_dst_;
-  assert(op_src && op_dst);
+  assert(inst->op_src_.has_value() && inst->op_dst_.has_value());
+  auto op_src = &inst->op_src_.value();
+  auto op_dst = &inst->op_dst_.value();
 
   if (inst->operation_length_ != kQWORD) {
     if (op_src->is_dereference_ == false && op_dst->is_dereference_ == false) {
@@ -369,7 +374,8 @@ bool SymbolicExecutor::xchg_handler(const InstrPtr inst, list<RegisterPtr> &reg_
 }
 
 bool SymbolicExecutor::branch_handler(const InstrPtr inst, list<RegisterPtr> &reg_list, bool record_flag) {
-  auto op_dst = inst->op_dst_;
+  if (!inst->op_dst_.has_value()) return true; // Some branch instructions may not have operands
+  auto op_dst = &inst->op_dst_.value();
 
   if (op_dst->is_dereference_) {
     // call/jmp []
@@ -431,10 +437,13 @@ bool SymbolicExecutor::contain_uncontrol_memory_access(const InstrPtr inst, cons
   unsigned op_num = inst->operand_num_;
 
   if (op_num == 0 || inst->opcode_ == OP_LEA || inst->opcode_ == OP_NOP) return false;
-  auto operand = inst->op_dst_;
-  if (operand->is_dereference_ == false) {
-    if (!inst->op_src_.has_value() || inst->op_src_->is_dereference_ == false) return false;
+  std::optional<Operand> operand;
+  if (inst->op_dst_.has_value() && inst->op_dst_->is_dereference_) {
+    operand = inst->op_dst_;
+  } else if (inst->op_src_.has_value() && inst->op_src_->is_dereference_) {
     operand = inst->op_src_;
+  } else {
+    return false;
   }
   if (operand->contain_segment_reg()) return false;
   for (auto &p : operand->reg_list_) {
@@ -515,6 +524,179 @@ bool SymbolicExecutor::ExecuteInstructions(const SegmentPtr instructions,
       }
     }
     return true;
+  }
+
+  // Register state management utilities
+  bool SymbolicExecutor::is_in_input(REG reg, const list<RegisterPtr> &reg_list) {
+    for (auto &iter : reg_list) {
+      if (iter->name_ == reg) return true;
+    }
+    return false;
+  }
+
+  RegisterPtr SymbolicExecutor::get_reg_by_idx(REG reg, const list<RegisterPtr> &reg_list) {
+    for (auto &iter : reg_list) {
+      if (iter->name_ == reg) return iter;
+    }
+    return nullptr;
+  }
+
+  void SymbolicExecutor::remove_reg(RegisterPtr reg_to_remove, list<RegisterPtr> &reg_list) {
+    reg_list.remove(reg_to_remove);
+  }
+
+  void SymbolicExecutor::remove_reg_by_idx(REG reg, list<RegisterPtr> &reg_list) {
+    for (auto iter = reg_list.begin(); iter != reg_list.end(); iter++) {
+      assert((*iter) != nullptr);
+      if ((*iter)->name_ == reg) {
+        reg_list.erase(iter);
+        return;
+      }
+    }
+  }
+
+  void SymbolicExecutor::remove_reg_and_alias(RegisterPtr reg_to_remove, list<RegisterPtr> &reg_list) {
+    shared_ptr<Memory> tmp = reg_to_remove->mem_;
+    for (auto &iter : reg_list) {
+      if (iter->mem_ == tmp) {
+        reg_list.remove(iter);
+        return;
+      }
+    }
+  }
+
+  RegisterPtr SymbolicExecutor::make_alias(REG alias_reg_name, RegisterPtr reg, bool copy_mem) {
+    auto new_reg = std::make_shared<Register>(false);
+    new_reg->name_ = alias_reg_name;
+    new_reg->alias(reg, copy_mem);
+    return new_reg;
+  }
+
+  RegisterPtr SymbolicExecutor::get_reg_by_relation(const string &relation, const list<RegisterPtr> &reg_list) {
+    for (auto reg : reg_list) {
+      if (reg->get_input_relation() == relation) {
+        return reg;
+      }
+    }
+    return nullptr;
+  }
+
+  bool SymbolicExecutor::is_alias(REG reg, const list<RegisterPtr> &reg_list) {
+    auto reg_ptr = get_reg_by_idx(reg, reg_list);
+    if (reg_ptr == nullptr) return false;
+    if (reg_ptr->mem_->ref_count_ > 1) return true;
+    return false;
+  }
+
+  bool SymbolicExecutor::is_independent(REG reg, const list<RegisterPtr> &reg_list) {
+    if (is_alias(reg, reg_list)) return false;
+    RegisterPtr regptr = get_reg_by_idx(reg, reg_list);
+    if (regptr == nullptr) return false;
+    if (regptr->mem_->range_.size() == 1) return true;
+    return false;
+  }
+
+  list<RegisterPtr> SymbolicExecutor::copy_reg_list(list<RegisterPtr> reg_list) {
+    list<RegisterPtr> result;
+
+    for (auto reg : reg_list) {
+      auto new_reg = std::make_shared<Register>(reg);
+      for (auto reg2 : result) {
+        if (reg2->mem_->mem_id_ == new_reg->mem_->mem_id_) {
+          new_reg->mem_ = reg2->mem_;
+          break;
+        }
+      }
+      result.push_back(new_reg);
+    }
+    return result;
+  }
+
+  void SymbolicExecutor::delete_reg_list(list<RegisterPtr> &reg_list) {
+    for (auto reg : reg_list) {
+    }
+  }
+
+  list<RegisterPtr> SymbolicExecutor::prepare_reg_list(const vector<REG> &reg_name_list) {
+    list<RegisterPtr> List;
+    for (auto &inter : reg_name_list) {
+      RegisterPtr reg = std::make_shared<Register>();
+      reg->name_ = inter;
+      reg->input_src_ = get_reg_str_by_reg(inter);
+      reg->input_action_ = false;
+      reg->mem_->set_input_relation(reg, 0, false);
+      List.push_back(reg);
+    }
+    return List;
+  }
+
+  unsigned SymbolicExecutor::remove_useless_instructions(SegmentPtr inst_list, const list<RegisterPtr> &reg_list) {
+    unsigned int index = inst_list->useful_inst_index_;
+    auto &insts = inst_list->inst_list_;
+    unsigned int siz = insts.size();
+
+    while (index < siz) {
+      auto inst = insts[index];
+      if (inst->operation_length_ != kQWORD || inst->opcode_ == OP_PUSH) {
+        index++;
+        continue;
+      }
+
+      if (inst->operand_num_ == 2) {
+        assert(inst->op_src_.has_value());
+        assert(inst->op_dst_.has_value());
+        if (inst->op_src_->reg_num_ == 0) {
+          index++;
+          continue;
+        }
+        if (inst->op_dst_.has_value() && inst->op_dst_->is_dereference_) {
+          if (inst->op_dst_->reg_num_ != 1) {
+            index++;
+            continue;
+          }
+          if (is_in_input(inst->op_dst_->get_reg_op(), reg_list) == false) {
+            index++;
+            continue;
+          }
+        }
+        if (inst->op_src_->reg_num_ == 1 && inst->op_src_->reg_list_[0].second == 1) {
+          if (is_in_input(inst->op_src_->reg_list_[0].first, reg_list)) {
+            break;
+          }
+        }
+      } else {
+        assert(inst->op_dst_.has_value());
+        if (inst->op_dst_->reg_num_ == 0) {
+          index++;
+          continue;
+        }
+        if (inst->op_dst_->reg_num_ == 1 && inst->op_dst_->reg_list_[0].second == 1) {
+          if (is_in_input(inst->op_dst_->reg_list_[0].first, reg_list)) {
+            break;
+          }
+        }
+      }
+      index++;
+    }
+    inst_list->useful_inst_index_ = index;
+    return index;
+  }
+
+  bool SymbolicExecutor::is_solution(const vector<pair<REG, int>> &must_control_list,
+                                     const list<RegisterPtr> &reg_list) {
+    bool flag = true;
+
+    for (auto &reg : must_control_list) {
+      if (is_in_input(reg.first, reg_list) == false) {
+        flag = false;
+        break;
+      }
+      if (reg.second == 1 && is_independent(reg.first, reg_list) == false) {
+        flag = false;
+        break;
+      }
+    }
+    return flag;
   }
 
 }  // namespace onepunch
