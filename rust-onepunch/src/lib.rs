@@ -13,6 +13,8 @@ pub mod symbolic_executor;
 pub mod symbolic_executor_ffi;
 pub mod preprocessor;
 pub mod preprocessor_ffi;
+pub mod solver;
+pub mod solver_ffi;
 
 pub use register::*;
 pub use ffi::*;
@@ -24,6 +26,8 @@ pub use symbolic_executor::*;
 pub use symbolic_executor_ffi::*;
 pub use preprocessor::*;
 pub use preprocessor_ffi::*;
+pub use solver::*;
+pub use solver_ffi::*;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

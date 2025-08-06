@@ -189,6 +189,8 @@ typedef struct RustOperand RustOperand;
 
 typedef struct RustPreprocessor RustPreprocessor;
 
+typedef struct RustSolver RustSolver;
+
 typedef struct RustValue {
   enum RustValueType value_type;
   long value;
@@ -347,5 +349,10 @@ void rust_preprocessor_process(struct RustPreprocessor *preprocessor,
 unsigned long rust_constraint_analyzer_compute_constraint(const struct RustSegment *segment);
 
 unsigned char rust_constraint_analyzer_hash_match(unsigned long needed, unsigned long src);
+
+void rust_solver_free(struct RustSolver *solver);
+
+unsigned long rust_solver_hash_reg_list(const struct RustRegister *const *reg_list_ptr,
+                                        unsigned int reg_list_len);
 
 #endif /* RUST_ONEPUNCH_H */
