@@ -1,4 +1,4 @@
-use std::os::raw::{c_char, c_long, c_uchar, c_uint};
+use std::os::raw::{c_char, c_long, c_uchar, c_uint, c_ulong};
 use std::collections::HashMap;
 
 #[repr(C)]
@@ -150,8 +150,261 @@ pub enum RustReg {
     RegCr3,
 }
 
-// For now, let's focus on core utility functions without complex structures
-// We can add complex structures later once the basic integration works
+#[repr(C)]
+#[derive(Clone)]
+pub struct RustOperand {
+    pub is_dereference: c_uchar,
+    pub contain_seg_reg: c_uchar,
+    pub reg_list_ptr: *mut (RustReg, c_uint),
+    pub reg_list_len: c_uint,
+    pub literal_sym: c_uchar,
+    pub literal_num: c_ulong,
+    pub reg_num: c_uint,
+    pub operation_length: RustOperationLength,
+    pub imm: c_long,
+}
+
+impl RustOperand {
+    pub fn new(
+        is_dereference: bool,
+        is_contain_seg_reg: bool,
+        reg_list: Vec<(RustReg, c_uint)>,
+        literal_sym: bool,
+        literal_num: c_ulong,
+        operation_length: RustOperationLength,
+    ) -> Self {
+        let reg_list_len = reg_list.len() as c_uint;
+        let reg_list_ptr = if reg_list.is_empty() {
+            std::ptr::null_mut()
+        } else {
+            let boxed_slice = reg_list.into_boxed_slice();
+            Box::into_raw(boxed_slice) as *mut (RustReg, c_uint)
+        };
+
+        Self {
+            is_dereference: if is_dereference { 1 } else { 0 },
+            contain_seg_reg: if is_contain_seg_reg { 1 } else { 0 },
+            reg_list_ptr,
+            reg_list_len,
+            literal_sym: if literal_sym { 1 } else { 0 },
+            literal_num,
+            reg_num: reg_list_len,
+            operation_length,
+            imm: 0,
+        }
+    }
+
+    pub fn is_literal_number(&self) -> bool {
+        self.reg_num == 0 && !self.is_dereference()
+    }
+
+    pub fn is_reg_operation(&self) -> bool {
+        self.reg_num == 1 && !self.is_dereference()
+    }
+
+    pub fn contain_reg(&self, reg: RustReg) -> bool {
+        if self.reg_list_ptr.is_null() || self.reg_list_len == 0 {
+            return false;
+        }
+        
+        unsafe {
+            let slice = std::slice::from_raw_parts(self.reg_list_ptr, self.reg_list_len as usize);
+            slice.iter().any(|(r, _)| *r == reg)
+        }
+    }
+
+    pub fn is_reg64_operation(&self) -> bool {
+        if !self.is_reg_operation() {
+            return false;
+        }
+        
+        if self.reg_list_ptr.is_null() {
+            return false;
+        }
+        
+        unsafe {
+            let slice = std::slice::from_raw_parts(self.reg_list_ptr, 1);
+            let reg_val = slice[0].0 as u32;
+            reg_val > RustReg::Reg64Start as u32 && reg_val < RustReg::Reg64End as u32
+        }
+    }
+
+    pub fn is_memory_access(&self) -> bool {
+        self.is_dereference()
+    }
+
+    pub fn contain_segment_reg(&self) -> bool {
+        self.contain_seg_reg != 0
+    }
+
+    pub fn get_reg_op(&self) -> RustReg {
+        if self.is_reg_operation() && !self.reg_list_ptr.is_null() {
+            unsafe {
+                let slice = std::slice::from_raw_parts(self.reg_list_ptr, 1);
+                slice[0].0
+            }
+        } else {
+            RustReg::RegNone
+        }
+    }
+
+    pub fn is_dereference(&self) -> bool {
+        self.is_dereference != 0
+    }
+}
+
+impl Drop for RustOperand {
+    fn drop(&mut self) {
+        if !self.reg_list_ptr.is_null() && self.reg_list_len > 0 {
+            unsafe {
+                let slice = Box::from_raw(std::slice::from_raw_parts_mut(
+                    self.reg_list_ptr, 
+                    self.reg_list_len as usize
+                ));
+                drop(slice);
+            }
+        }
+    }
+}
+
+#[repr(C)]
+pub struct RustInstruction {
+    pub offset: c_ulong,
+    pub opcode: RustOpcode,
+    pub op_src: *mut RustOperand,
+    pub op_dst: *mut RustOperand,
+    pub operand_num: c_uint,
+    pub operation_length: RustOperationLength,
+    pub original_inst: *mut c_char,
+}
+
+impl RustInstruction {
+    pub fn new(offset: c_ulong, opcode: RustOpcode) -> Self {
+        Self {
+            offset,
+            opcode,
+            op_src: std::ptr::null_mut(),
+            op_dst: std::ptr::null_mut(),
+            operand_num: 0,
+            operation_length: RustOperationLength::None,
+            original_inst: std::ptr::null_mut(),
+        }
+    }
+
+    pub fn is_reg_operation(&self) -> bool {
+        if self.op_dst.is_null() {
+            return false;
+        }
+        unsafe {
+            (*self.op_dst).is_reg_operation()
+        }
+    }
+    
+    pub fn set_operands(&mut self, src: Option<RustOperand>, dst: Option<RustOperand>) {
+        // Clean up existing operands
+        if !self.op_src.is_null() {
+            unsafe {
+                drop(Box::from_raw(self.op_src));
+            }
+        }
+        if !self.op_dst.is_null() {
+            unsafe {
+                drop(Box::from_raw(self.op_dst));
+            }
+        }
+        
+        // Set new operands
+        self.op_src = src.map(|op| Box::into_raw(Box::new(op))).unwrap_or(std::ptr::null_mut());
+        self.op_dst = dst.map(|op| Box::into_raw(Box::new(op))).unwrap_or(std::ptr::null_mut());
+        
+        self.operand_num = (if !self.op_src.is_null() { 1 } else { 0 }) + 
+                          (if !self.op_dst.is_null() { 1 } else { 0 });
+    }
+}
+
+impl Drop for RustInstruction {
+    fn drop(&mut self) {
+        if !self.op_src.is_null() {
+            unsafe {
+                drop(Box::from_raw(self.op_src));
+            }
+        }
+        if !self.op_dst.is_null() {
+            unsafe {
+                drop(Box::from_raw(self.op_dst));
+            }
+        }
+        if !self.original_inst.is_null() {
+            unsafe {
+                drop(std::ffi::CString::from_raw(self.original_inst));
+            }
+        }
+    }
+}
+
+#[repr(C)]
+pub struct RustSegment {
+    pub inst_list_ptr: *mut *mut RustInstruction,
+    pub inst_list_len: c_uint,
+    pub useful_inst_index: c_uint,
+}
+
+impl RustSegment {
+    pub fn new(inst_list: Vec<Box<RustInstruction>>) -> Self {
+        let inst_list_len = inst_list.len() as c_uint;
+        let inst_list_ptr = if inst_list.is_empty() {
+            std::ptr::null_mut()
+        } else {
+            let ptrs: Vec<*mut RustInstruction> = inst_list.into_iter()
+                .map(|boxed_inst| Box::into_raw(boxed_inst))
+                .collect();
+            let boxed_slice = ptrs.into_boxed_slice();
+            Box::into_raw(boxed_slice) as *mut *mut RustInstruction
+        };
+
+        Self {
+            inst_list_ptr,
+            inst_list_len,
+            useful_inst_index: 0,
+        }
+    }
+
+    pub fn set_useful_inst_index(&mut self, idx: c_uint) {
+        self.useful_inst_index = idx;
+    }
+    
+    pub fn get_instruction(&self, index: c_uint) -> Option<&RustInstruction> {
+        if index >= self.inst_list_len || self.inst_list_ptr.is_null() {
+            return None;
+        }
+        
+        unsafe {
+            let slice = std::slice::from_raw_parts(self.inst_list_ptr, self.inst_list_len as usize);
+            if slice[index as usize].is_null() {
+                None
+            } else {
+                Some(&*slice[index as usize])
+            }
+        }
+    }
+}
+
+impl Drop for RustSegment {
+    fn drop(&mut self) {
+        if !self.inst_list_ptr.is_null() && self.inst_list_len > 0 {
+            unsafe {
+                let slice = std::slice::from_raw_parts_mut(self.inst_list_ptr, self.inst_list_len as usize);
+                for ptr in slice.iter_mut() {
+                    if !ptr.is_null() {
+                        drop(Box::from_raw(*ptr));
+                    }
+                }
+                let boxed_slice = Box::from_raw(slice);
+                drop(boxed_slice);
+            }
+        }
+    }
+}
 
 pub fn transfer_op_to_str(opcode: RustOpcode) -> &'static [u8] {
     match opcode {

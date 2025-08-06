@@ -185,6 +185,8 @@ typedef enum RustValueType {
 
 typedef struct RustMemory RustMemory;
 
+typedef struct RustOperand RustOperand;
+
 typedef struct RustValue {
   enum RustValueType value_type;
   long value;
@@ -198,6 +200,26 @@ typedef struct RustRegister {
   long input_offset;
   unsigned char input_action;
 } RustRegister;
+
+typedef struct RustInstruction {
+  unsigned long offset;
+  enum RustOpcode opcode;
+  struct RustOperand *op_src;
+  struct RustOperand *op_dst;
+  unsigned int operand_num;
+  enum RustOperationLength operation_length;
+  char *original_inst;
+} RustInstruction;
+
+typedef struct RustSegment {
+  struct RustInstruction **inst_list_ptr;
+  unsigned int inst_list_len;
+  unsigned int useful_inst_index;
+} RustSegment;
+
+typedef struct RustSymbolicExecutor {
+  unsigned char _reserved;
+} RustSymbolicExecutor;
 
 struct RustValue *rust_value_new(enum RustValueType value_type, long value);
 
@@ -236,5 +258,79 @@ const char *rust_transfer_op_to_str(enum RustOpcode opcode);
 enum RustReg rust_get_reg_by_str(const char *reg_str);
 
 const char *rust_get_reg_str_by_reg(enum RustReg reg);
+
+void rust_operand_free(struct RustOperand *operand);
+
+unsigned char rust_operand_is_literal_number(const struct RustOperand *operand);
+
+unsigned char rust_operand_is_reg_operation(const struct RustOperand *operand);
+
+unsigned char rust_operand_contain_reg(const struct RustOperand *operand, enum RustReg reg);
+
+unsigned char rust_operand_is_reg64_operation(const struct RustOperand *operand);
+
+enum RustReg rust_operand_get_reg_op(const struct RustOperand *operand);
+
+struct RustInstruction *rust_instruction_new(unsigned long offset, enum RustOpcode opcode);
+
+void rust_instruction_free(struct RustInstruction *instruction);
+
+unsigned char rust_instruction_is_reg_operation(const struct RustInstruction *instruction);
+
+void rust_instruction_set_operands(struct RustInstruction *instruction,
+                                   struct RustOperand *src_operand,
+                                   struct RustOperand *dst_operand);
+
+struct RustSegment *rust_segment_new(struct RustInstruction *const *inst_list_ptr,
+                                     unsigned int inst_list_len);
+
+void rust_segment_free(struct RustSegment *segment);
+
+void rust_segment_set_useful_inst_index(struct RustSegment *segment, unsigned int idx);
+
+const struct RustInstruction *rust_segment_get_instruction(const struct RustSegment *segment,
+                                                           unsigned int index);
+
+const char *rust_transfer_operation_len_to_str(unsigned int dtype);
+
+unsigned long rust_string_hash(const char *input);
+
+unsigned long rust_gen_id(void);
+
+unsigned char rust_is_imm(const char *input);
+
+unsigned int rust_str_split(const char *input,
+                            const char *delimiter,
+                            char **result_array,
+                            unsigned int max_results);
+
+char *rust_str_trim(const char *input);
+
+double rust_get_cur_time(void);
+
+void rust_free_string(char *s);
+
+struct RustSymbolicExecutor *rust_symbolic_executor_new(void);
+
+void rust_symbolic_executor_free(struct RustSymbolicExecutor *executor);
+
+unsigned char rust_symbolic_executor_execute_instructions(const struct RustSymbolicExecutor *executor,
+                                                          const struct RustSegment *segment,
+                                                          struct RustRegister **reg_list_ptr,
+                                                          unsigned int reg_list_len,
+                                                          unsigned char record_flag);
+
+unsigned char rust_symbolic_executor_is_in_input(enum RustReg reg,
+                                                 const struct RustRegister *const *reg_list_ptr,
+                                                 unsigned int reg_list_len);
+
+struct RustRegister *rust_symbolic_executor_get_reg_by_idx(enum RustReg reg,
+                                                           struct RustRegister **reg_list_ptr,
+                                                           unsigned int reg_list_len);
+
+unsigned int rust_symbolic_executor_prepare_reg_list(const enum RustReg *reg_names_ptr,
+                                                     unsigned int reg_names_len,
+                                                     struct RustRegister **result_ptr,
+                                                     unsigned int max_results);
 
 #endif /* RUST_ONEPUNCH_H */
