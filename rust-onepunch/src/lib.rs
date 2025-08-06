@@ -46,7 +46,7 @@ pub struct RustMemory {
 
 impl RustMemory {
     pub fn new() -> Self {
-        static mut NEXT_MEM_ID: c_uint = 1;
+        static mut NEXT_MEM_ID: c_uint = 0;
         let mem_id = unsafe {
             let id = NEXT_MEM_ID;
             NEXT_MEM_ID += 1;

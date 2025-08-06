@@ -10,26 +10,19 @@ OnePunch is a tool for finding ROP gadgets to achieve arbitrary code execution b
 
 **Main executable (Release build):**
 ```bash
-cmake -Sstandalone -Bbuild
-cmake --build build -j4
+cmake -S. -Bbuild_test
+cmake --build build_test -j4
 ```
 
 **Debug build with sanitizers:**
 ```bash
-cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j4
+cmake -S. -Bbuild_test
+cmake --build build_test -j4
 ```
 
 **Tests:**
 ```bash
-cmake -S. -Bbuild_test
-cmake --build build_test -j4
 ./build_test/test/OnePunch_Tests
-```
-
-**Run single test:**
-```bash
-./build_test/OnePunch_Tests --test-case="Find and Minimize Solution Test"
 ```
 
 ## Core Architecture
