@@ -19,7 +19,7 @@ pub extern "C" fn rust_symbolic_executor_free(executor: *mut RustSymbolicExecuto
 
 #[no_mangle]
 pub extern "C" fn rust_symbolic_executor_execute_instructions(
-    executor: *const RustSymbolicExecutor,
+    executor: *mut RustSymbolicExecutor,
     segment: *const RustSegment,
     reg_list_ptr: *mut *mut RustRegister,
     reg_list_len: c_uint,
@@ -30,7 +30,7 @@ pub extern "C" fn rust_symbolic_executor_execute_instructions(
     }
 
     unsafe {
-        let executor_ref = &*executor;
+        let executor_ref = &mut *executor;
         let segment_ref = &*segment;
         let mut reg_vec = Vec::from_raw_parts(reg_list_ptr, reg_list_len as usize, reg_list_len as usize);
         

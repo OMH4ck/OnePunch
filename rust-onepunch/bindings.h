@@ -218,7 +218,8 @@ typedef struct RustSegment {
 } RustSegment;
 
 typedef struct RustSymbolicExecutor {
-  unsigned char _reserved;
+  unsigned char is_rsp_usable;
+  unsigned char is_rbp_usable;
 } RustSymbolicExecutor;
 
 struct RustValue *rust_value_new(enum RustValueType value_type, long value);
@@ -314,7 +315,7 @@ struct RustSymbolicExecutor *rust_symbolic_executor_new(void);
 
 void rust_symbolic_executor_free(struct RustSymbolicExecutor *executor);
 
-unsigned char rust_symbolic_executor_execute_instructions(const struct RustSymbolicExecutor *executor,
+unsigned char rust_symbolic_executor_execute_instructions(struct RustSymbolicExecutor *executor,
                                                           const struct RustSegment *segment,
                                                           struct RustRegister **reg_list_ptr,
                                                           unsigned int reg_list_len,
