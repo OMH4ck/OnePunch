@@ -5,9 +5,13 @@ use std::ptr;
 
 pub mod register;
 pub mod ffi;
+pub mod asmutils;
+pub mod asmutils_ffi;
 
 pub use register::*;
 pub use ffi::*;
+pub use asmutils::*;
+pub use asmutils_ffi::*;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

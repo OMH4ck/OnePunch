@@ -5,7 +5,7 @@ include_version = true
 namespace = "rust_onepunch"
 
 [export]
-include = ["RustValueType", "RustValue", "RustMemory", "RustRegister", "RustRegType"]
+include = ["RustValueType", "RustValue", "RustMemory", "RustRegister", "RustRegType", "RustOpcode", "RustReg", "RustOperationLength", "RustOperand", "RustInstruction"]
 
 [enum]
 rename_variants = "ScreamingSnakeCase"
