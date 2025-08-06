@@ -11,6 +11,8 @@ pub mod utils;
 pub mod utils_ffi;
 pub mod symbolic_executor;
 pub mod symbolic_executor_ffi;
+pub mod preprocessor;
+pub mod preprocessor_ffi;
 
 pub use register::*;
 pub use ffi::*;
@@ -20,6 +22,8 @@ pub use utils::*;
 pub use utils_ffi::*;
 pub use symbolic_executor::*;
 pub use symbolic_executor_ffi::*;
+pub use preprocessor::*;
+pub use preprocessor_ffi::*;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

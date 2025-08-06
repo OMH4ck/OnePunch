@@ -1,0 +1,5 @@
+# Hashes of file build rules.
+60d44170c3fdf902603d88ab0e8ee53e ../bindings.h
+18244ab5608b2dee7fb4c8fa0d968e51 ../target/release/librust_onepunch.a
+60d44170c3fdf902603d88ab0e8ee53e CMakeFiles/rust_bindings
+18244ab5608b2dee7fb4c8fa0d968e51 CMakeFiles/rust_onepunch_build

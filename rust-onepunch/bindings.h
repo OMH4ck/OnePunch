@@ -187,6 +187,8 @@ typedef struct RustMemory RustMemory;
 
 typedef struct RustOperand RustOperand;
 
+typedef struct RustPreprocessor RustPreprocessor;
+
 typedef struct RustValue {
   enum RustValueType value_type;
   long value;
@@ -333,5 +335,17 @@ unsigned int rust_symbolic_executor_prepare_reg_list(const enum RustReg *reg_nam
                                                      unsigned int reg_names_len,
                                                      struct RustRegister **result_ptr,
                                                      unsigned int max_results);
+
+struct RustPreprocessor *rust_preprocessor_new(void);
+
+void rust_preprocessor_free(struct RustPreprocessor *preprocessor);
+
+void rust_preprocessor_process(struct RustPreprocessor *preprocessor,
+                               struct RustSegment *const *segments_ptr,
+                               unsigned int segments_len);
+
+unsigned long rust_constraint_analyzer_compute_constraint(const struct RustSegment *segment);
+
+unsigned char rust_constraint_analyzer_hash_match(unsigned long needed, unsigned long src);
 
 #endif /* RUST_ONEPUNCH_H */
