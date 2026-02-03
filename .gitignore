@@ -5,4 +5,5 @@
 **/.gdb_history
 peda*
 .cache
-coretarget/
+core
+/target/
