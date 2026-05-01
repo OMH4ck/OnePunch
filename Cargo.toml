@@ -1,0 +1,25 @@
+[package]
+name = "onepunch"
+version = "1.0.1"
+edition = "2021"
+description = "A tool for finding gadgets to achieve arbitrary code execution"
+authors = ["OMH4ck"]
+license = "MIT"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+pretty_assertions = "1"
+
+[[bin]]
+name = "OnePunch"
+path = "src/main.rs"
+
+[lib]
+name = "onepunch"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = true

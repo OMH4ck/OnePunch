@@ -6,3 +6,4 @@
 peda*
 .cache
 core
+/target/
